@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.pyo
+*.zip
+.claude/
+docs/git2.md
