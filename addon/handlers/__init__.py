@@ -24,3 +24,7 @@ from . import animation  # noqa: F401, E402
 from . import nodes  # noqa: F401, E402
 from . import render  # noqa: F401, E402
 from . import mesh  # noqa: F401, E402
+from . import session  # noqa: F401, E402
+from . import lighting  # noqa: F401, E402
+from . import print3d  # noqa: F401, E402
+from . import analysis  # noqa: F401, E402

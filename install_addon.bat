@@ -14,20 +14,12 @@ if exist "%DEST%" (
     goto :end
 )
 
-:: Not installed yet - build zip if needed
-if not exist "%ZIP%" (
-    echo Building addon.zip...
-    where tar >nul 2>nul
-    if %errorlevel%==0 (
-        pushd "%SRC%"
-        tar -cf "%ZIP%" -C "%SRC%" .
-        popd
-    ) else (
-        powershell -Command "Compress-Archive -Path '%SRC%\*' -DestinationPath '%ZIP%' -Force"
-    )
-    echo Created addon.zip
-) else (
-    echo addon.zip already exists.
+:: Not installed yet - build the zip (files must sit inside a blendermcp\ folder)
+echo Building addon.zip...
+python "%~dp0build_addon.py"
+if errorlevel 1 (
+    echo Could not build addon.zip. Make sure Python is on PATH.
+    goto :end
 )
 
 echo.

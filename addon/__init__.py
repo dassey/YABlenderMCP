@@ -1,7 +1,7 @@
 bl_info = {
     "name": "BlenderMCP",
     "author": "Custom",
-    "version": (1, 0, 0),
+    "version": (2, 0, 0),
     "blender": (5, 1, 0),
     "location": "View3D > Sidebar > BlenderMCP",
     "description": "MCP server for AI control of Blender",
