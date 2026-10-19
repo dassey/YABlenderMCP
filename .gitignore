@@ -4,3 +4,4 @@ __pycache__/
 *.zip
 .claude/
 docs/git2.md
+.venv/

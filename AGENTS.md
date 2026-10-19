@@ -70,12 +70,14 @@ tests/
 docs/
   specs/              - Original design spec and implementation plan (historical)
 
+install.py          - one-step install: mcp package, build zip, install+enable add-on via background
+                      Blender (auto start on), headless self-test, prints the client entry; --uninstall
 build_addon.py      - builds addon.zip (files under blendermcp/, as Blender requires)
-install_addon.bat   - Windows: syncs files into the installed addon, or builds the zip on first run
+install_addon.bat   - Windows dev sync: copies source into the installed addon, or builds the zip on first run
 requirements.txt    - Only: mcp[cli]>=1.30 (1.x and 2.x both work)
 logo.jpg            - Repo icon (orange Blender cube with glowing cyan logos)
 README.md           - User-facing docs: every feature and how to use it
-.gitignore          - __pycache__, .pyc/.pyo, .zip, .claude/, docs/git2.md
+.gitignore          - __pycache__, .pyc/.pyo, .zip, .claude/, docs/git2.md, .venv/
 ```
 
 105 tools in total.
@@ -178,7 +180,8 @@ blender -b scene.blend -c blendermcp --port 9001
 ```
 
 **Install addon into Blender:**
-- First time: `python build_addon.py` (or run `install_addon.bat`), it builds `addon.zip`. In Blender: Edit > Preferences > Add-ons > dropdown > Install from Disk > pick `addon.zip` > enable.
+- Install or upgrade (Blender closed): `.venv\Scripts\python install.py` — installs `mcp` into the venv, builds and installs the zip, enables the add-on with auto start, runs a headless self-test, prints the client entry. Last line `OK:` / `FAILED:`. Never use `--factory-startup` for this (it would save factory preferences).
+- Manual: `python build_addon.py`, then in Blender: Edit > Preferences > Add-ons > dropdown > Install from Disk > pick `addon.zip` > enable.
 - Afterward for dev iteration: re-run `install_addon.bat` — it detects the addon is already installed and syncs source files directly (restart Blender to pick up changes).
 
 ---
@@ -231,6 +234,8 @@ The client must be restarted to pick up config changes. Optional env: `BLENDER_M
 13. **Headless `-c blendermcp`** starts with an empty context (no `selected_objects`); handlers run inside a window override there. Viewport tools and undo need the UI.
 
 14. **Offscreen capture**: read `GPUOffScreen` pixels as FLOAT and convert; UBYTE readback through numpy came back garbled.
+
+15. **Upgrading the add-on from a script**: `addon_enable` does nothing when the add-on is already enabled, so the old code stays loaded (v1 had no preferences class). `install.py` disables it and drops `blendermcp*` from `sys.modules` before enabling. `preferences.addon_remove` needs a UI area and fails in background mode, so `--uninstall` deletes the folder itself.
 
 ---
 
