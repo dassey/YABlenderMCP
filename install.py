@@ -1,7 +1,8 @@
 """One-step install of YABlenderMCP (close Blender first).
 
     python install.py [--blender PATH] [--port 9001] [--no-autostart] [--skip-verify] [--force]
-    python install.py --uninstall [--blender PATH]
+                      [--skill-dir DIR]
+    python install.py --uninstall [--blender PATH] [--skill-dir DIR]
 
 Installs the mcp package for this Python if needed, builds addon.zip, installs and enables
 the add-on in Blender with "Start server when Blender opens" on, tests it in a headless
@@ -23,6 +24,7 @@ import time
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 MAIN = os.path.join(ROOT, "server", "main.py")
+SKILL = os.path.join(ROOT, "skills", "blender-mcp")
 MIN_BLENDER = (5, 1)
 MIN_MCP = (1, 30)
 
@@ -207,6 +209,10 @@ def verify(blender):
     os.remove(log_path)
 
 
+def skill_target(skill_dir):
+    return os.path.join(os.path.abspath(os.path.expanduser(skill_dir)), os.path.basename(SKILL))
+
+
 def client_entry(port):
     entry = {"command": sys.executable, "args": [MAIN], "env": {"PYTHONUTF8": "1"}}
     if port != 9001:
@@ -222,6 +228,8 @@ def main():
     parser.add_argument("--skip-verify", action="store_true", help="skip the headless self-test")
     parser.add_argument("--force", action="store_true", help="install even if Blender seems to be running")
     parser.add_argument("--uninstall", action="store_true", help="disable and remove the add-on")
+    parser.add_argument("--skill-dir", help="also copy the blender-mcp skill into this skills folder "
+                                            "(for clients that support Agent Skills)")
     args = parser.parse_args()
 
     if sys.version_info < (3, 10):
@@ -233,6 +241,9 @@ def main():
 
     if args.uninstall:
         run_in_blender(blender, "uninstall")
+        if args.skill_dir and os.path.isdir(skill_target(args.skill_dir)):
+            shutil.rmtree(skill_target(args.skill_dir))
+            print(f"Skill removed: {skill_target(args.skill_dir)}")
         print("OK: add-on removed from Blender. Also remove the \"blender\" entry from your MCP client config.")
         return
 
@@ -250,6 +261,12 @@ def main():
     if not args.skip_verify:
         print("Self-test with a headless Blender ...", flush=True)
         verify(blender)
+    if args.skill_dir:
+        target = skill_target(args.skill_dir)
+        if os.path.isdir(target):
+            shutil.rmtree(target)
+        shutil.copytree(SKILL, target)
+        print(f"Skill copied to {target}")
     print("\nAdd this entry to your MCP client's config, then restart the client:")
     print(json.dumps(client_entry(args.port), indent=2))
     print("\nOK: YABlenderMCP is installed. Open Blender; the server "

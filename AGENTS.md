@@ -36,6 +36,7 @@ server/
                       strips null arguments
   connection.py     - TCP client (singleton BlenderConnection), send / params_of / jparse helpers
   prompts.py        - 4 MCP prompts: print_prep, build_scene, review_scene, image_to_model
+  guide.py          - serves skills/blender-mcp/SKILL.md as the get_usage_guide tool and blender://guide resource
   tools/
     code.py         - execute_blender_code (the workhorse)
     session.py      - 11: info, undo/redo, batch, units, clear, get/set properties, op history, API search/docs
@@ -53,7 +54,7 @@ server/
     analysis.py     - 6: distance, ray hit, pick, snapshot/diff, silhouette compare
 
 addon/
-  __init__.py       - bl_info (version 2.0.0), register/unregister delegate to server module
+  __init__.py       - bl_info (version 2.0.1), register/unregister delegate to server module
   server.py         - BlenderMCPServer (TCP), job queue, undo wrapper operator, prefs, UI panel,
                       headless CLI command (-c blendermcp)
   handlers/
@@ -63,6 +64,9 @@ addon/
     session.py, scene.py, viewport.py, materials.py, modifiers.py, io_handlers.py,
     animation.py, nodes.py, render.py, mesh.py, lighting.py, print3d.py, analysis.py
                     - one file per domain, matching server/tools/ (io_handlers named so to avoid clashing)
+
+skills/
+  blender-mcp/SKILL.md - the AI's playbook for using the tools (Agent Skills format; also served over MCP)
 
 tests/
   test_connection.py  - Standalone smoke test (direct TCP, no pytest)
@@ -80,7 +84,7 @@ README.md           - User-facing docs: every feature and how to use it
 .gitignore          - __pycache__, .pyc/.pyo, .zip, .claude/, docs/git2.md, .venv/
 ```
 
-105 tools in total.
+106 tools in total (105 Blender tools + get_usage_guide).
 
 ---
 
@@ -145,7 +149,9 @@ def register(mcp: FastMCP):
 
 Use `READ` for read-only tools and `DESTRUCTIVE` for deletes. If it's a new domain, create a new file and add it to the imports and `TOOLSETS` in `server/main.py`.
 
-**3. Reinstall the addon into Blender** (re-run `install_addon.bat` to sync the addon folder, then restart Blender). Restart the MCP client to pick up the new tool.
+**3. Update the playbook**: if the tool changes how a task is best done, add it to `skills/blender-mcp/SKILL.md` (the "Which tool for what" table) and to the README feature tables.
+
+**4. Reinstall the addon into Blender** (re-run `install_addon.bat` to sync the addon folder, then restart Blender). Restart the MCP client to pick up the new tool.
 
 ---
 
@@ -167,7 +173,7 @@ Most new functionality does NOT need a new structured tool. If a user asks for s
 ```bash
 python server/main.py --check
 ```
-Prints `MCP server OK: 105 tools` and the addon version, or why the addon is not reachable.
+Prints `MCP server OK: 106 tools` and the addon version, or why the addon is not reachable.
 
 **Smoke test** (direct TCP):
 ```bash

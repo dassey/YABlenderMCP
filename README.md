@@ -2,7 +2,7 @@
 
 MCP server that lets an AI agent work in Blender 5.1 on your computer: modeling, materials, lighting, animation, rendering and 3D-print preparation.
 
-- 105 tools and 4 prompts.
+- 106 tools, 4 prompts, and a skill that teaches the AI how to use them.
 - Local only. No API keys, no accounts, no telemetry. The MCP server refuses network connections to any machine except this one.
 - Every tool call that changes the scene is one Ctrl+Z step.
 
@@ -65,7 +65,8 @@ Then add the printed entry to your MCP client's config, restart the client and o
 | `--no-autostart` | Don't start the server when Blender opens; use the Start Server button instead. |
 | `--skip-verify` | Skip the headless self-test. |
 | `--force` | Install even if Blender seems to be running. |
-| `--uninstall` | Disable and remove the add-on. |
+| `--skill-dir DIR` | Also copy the `blender-mcp` skill into this skills folder (for clients that support Agent Skills). |
+| `--uninstall` | Disable and remove the add-on (and the skill, with `--skill-dir`). |
 
 **Update:** `git pull`, run the installer again, then restart Blender and the MCP client.
 
@@ -88,13 +89,13 @@ Follow these steps in order. Run commands from the repository folder.
 
 1. Check `python --version` is 3.10 or newer (on Windows, `py -3 --version` if `python` is missing). Check that Blender 5.1 is installed. If either is missing, stop and ask the user to install it. Blender downloads: https://www.blender.org/download/ (older versions: https://download.blender.org/release/).
 2. Ask the user to close Blender. The installer refuses to run while Blender is open, because Blender would overwrite the new preferences when it quits.
-3. Clone the repo, create `.venv` and run the installer with the venv's Python, exactly as in [Install](#install).
+3. Clone the repo, create `.venv` and run the installer with the venv's Python, exactly as in [Install](#install). If your client supports Agent Skills, add `--skill-dir "<your client's skills folder>"`.
    - Success: exit code 0 and a last line starting with `OK:`.
    - `FAILED: Blender not found`: run it again with `--blender "<full path to the Blender executable>"`.
    - Any other `FAILED:` line: report it to the user word for word.
 4. Register the server in your MCP client using exactly the `command` and `args` the installer printed: absolute paths, with `command` being the venv's Python. Keep `"PYTHONUTF8": "1"`. Don't use a bare `python`, which may be a Python without the `mcp` package.
 5. Tell the user to restart the MCP client and open Blender. The server starts by itself; the BlenderMCP tab (N panel) shows "Running on 127.0.0.1:9001".
-6. With Blender open, verify: `<venv python> server/main.py --check` must exit with code 0 and print `MCP server OK: 105 tools` and `... reachable on port 9001`.
+6. With Blender open, verify: `<venv python> server/main.py --check` must exit with code 0 and print `MCP server OK: 106 tools` and `... reachable on port 9001`.
 
 Don't:
 
@@ -104,7 +105,12 @@ Don't:
 
 ### Using the tools
 
-The server sends these rules to the model when it connects:
+`skills/blender-mcp/SKILL.md` is the playbook for the AI. It covers what is available, which tool to use for what, how to check results, units, undo, the 3D-print and 2D-to-3D workflows, Blender 5.1 API pitfalls and what each error means. It reaches the model in two ways:
+
+- **Every MCP client:** the server serves it as the `get_usage_guide` tool and the `blender://guide` resource, and the connect instructions tell the model to read it.
+- **Clients with Agent Skills support:** copy `skills/blender-mcp` into the client's skills folder, or run the installer with `--skill-dir`. It then loads by itself for Blender tasks.
+
+The server also sends these rules to the model when it connects:
 
 - Inspect first (`get_scene_info`, `get_object_info`). After changes, check with `capture_views` before reporting success.
 - Prefer measured tools (`place_object`, `frame_camera`, `measure_distance`, `check_printability`) to guessed coordinates.
