@@ -385,3 +385,7 @@ python tests/test_connection.py 9001     # raw TCP smoke test
 | Port already in use | Another program or a second Blender uses it; change Port in the add-on and `YAB_MCP_PORT`. |
 | A render is running | Wait until `get_render_status` reports finished. |
 | ZIP packaged incorrectly | Build the zip with `python build_addon.py`. |
+
+## License
+
+MIT. See [LICENSE](LICENSE).

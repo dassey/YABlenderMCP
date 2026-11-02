@@ -80,15 +80,13 @@ skills/
 tests/
   test_connection.py  - Standalone smoke test (direct TCP, no pytest)
 
-docs/
-  specs/              - Original design spec and implementation plan (historical)
-
 install.py          - one-step install: mcp package, build zip, install+enable add-on via background
                       Blender (auto start on), headless self-test, prints the client entry; --uninstall
 build_addon.py      - builds yab-mcp-addon.zip (files under yab_mcp/, as Blender requires)
 install_addon.bat   - Windows dev sync: copies source into the installed addon, or builds the zip on first run
 requirements.txt    - Only: mcp[cli]>=1.30 (1.x and 2.x both work)
 logo.jpg            - Repo icon (orange Blender cube with glowing cyan logos)
+LICENSE             - MIT
 README.md           - User-facing docs: every feature and how to use it
 .gitignore          - __pycache__, .pyc/.pyo, .zip, .claude/, docs/git2.md, .venv/
 ```
