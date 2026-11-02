@@ -31,7 +31,7 @@ _UNWRAPPED = {
 }
 
 
-class BlenderMCPServer:
+class YABlenderMCPServer:
     """Socket threads only parse and queue commands; everything touching bpy runs on
     Blender's main thread when the queue is drained (bpy.app.timers is not thread-safe)."""
 
@@ -64,11 +64,11 @@ class BlenderMCPServer:
             self.socket.listen(5)
             self.server_thread = threading.Thread(target=self._server_loop, daemon=True)
             self.server_thread.start()
-            print(f"[BlenderMCP] Server started on {self.host}:{self.port}")
+            print(f"[YABlenderMCP] Server started on {self.host}:{self.port}")
             return True
         except Exception as e:
             self.last_error = str(e)
-            print(f"[BlenderMCP] Failed to start: {e}")
+            print(f"[YABlenderMCP] Failed to start: {e}")
             self.stop()
             return False
 
@@ -93,22 +93,22 @@ class BlenderMCPServer:
                 job = self.jobs.get_nowait()
             except queue.Empty:
                 break
-            job["response"] = {"status": "error", "message": "BlenderMCP server stopped"}
+            job["response"] = {"status": "error", "message": "YABlenderMCP server stopped"}
             job["done"].set()
-        print("[BlenderMCP] Server stopped")
+        print("[YABlenderMCP] Server stopped")
 
     def _server_loop(self):
         self.socket.settimeout(1.0)
         while self.running:
             try:
                 client, address = self.socket.accept()
-                print(f"[BlenderMCP] Client connected: {address}")
+                print(f"[YABlenderMCP] Client connected: {address}")
                 threading.Thread(target=self._handle_client, args=(client,), daemon=True).start()
             except socket.timeout:
                 continue
             except Exception as e:
                 if self.running:
-                    print(f"[BlenderMCP] Accept error: {e}")
+                    print(f"[YABlenderMCP] Accept error: {e}")
 
     def _handle_client(self, client):
         client.settimeout(1.0)
@@ -125,7 +125,7 @@ class BlenderMCPServer:
                     break
                 buffer += data
                 if len(buffer) > MAX_MESSAGE_BYTES:
-                    print("[BlenderMCP] Message too large, dropping client")
+                    print("[YABlenderMCP] Message too large, dropping client")
                     return
                 # Messages are newline-delimited JSON. A bare JSON object without a
                 # trailing newline is still accepted for older MCP servers.
@@ -142,7 +142,7 @@ class BlenderMCPServer:
                         if line is buffer:
                             break
                         # Not our protocol (e.g. an HTTP request from a web page): drop the client.
-                        print("[BlenderMCP] Rejected non-JSON data from client")
+                        print("[YABlenderMCP] Rejected non-JSON data from client")
                         return
                     if line is buffer:
                         buffer = b""
@@ -156,7 +156,7 @@ class BlenderMCPServer:
                     if not buffer:
                         break
         except Exception as e:
-            print(f"[BlenderMCP] Client error: {e}")
+            print(f"[YABlenderMCP] Client error: {e}")
         finally:
             self.client_sockets.discard(client)
             self.clients -= 1
@@ -164,11 +164,11 @@ class BlenderMCPServer:
                 client.close()
             except Exception:
                 pass
-            print("[BlenderMCP] Client disconnected")
+            print("[YABlenderMCP] Client disconnected")
 
     def _run_command(self, command):
         if self.token and not hmac.compare_digest(str(command.get("token", "")).encode(), self.token.encode()):
-            return {"status": "error", "message": "Invalid or missing token (set BLENDER_MCP_TOKEN to match the addon preference)."}
+            return {"status": "error", "message": "Invalid or missing token (set YAB_MCP_TOKEN to the Token in the add-on preferences)."}
 
         timeout = command.get("timeout") or DEFAULT_TIMEOUT
         timeout = max(1.0, min(float(timeout), MAX_TIMEOUT))
@@ -235,7 +235,7 @@ def _call_handler(cmd_type, handler, params):
     if (cmd_type.startswith(_READONLY_PREFIXES) or cmd_type in _UNWRAPPED
             or bpy.app.background or not wm.windows):
         if bpy.app.background and wm.windows and bpy.context.window is None and cmd_type != "open_blend":
-            # Headless command mode (-c blendermcp) starts with an empty context; use the file's window.
+            # Headless command mode (-c yab_mcp) starts with an empty context; use the file's window.
             with bpy.context.temp_override(window=wm.windows[0]):
                 return handler(**params)
         return handler(**params)
@@ -244,7 +244,7 @@ def _call_handler(cmd_type, handler, params):
     try:
         with bpy.context.temp_override(window=wm.windows[0]):
             # Python operator calls only push an undo step when asked to (second argument).
-            bpy.ops.blendermcp.run_command("EXEC_DEFAULT", True)
+            bpy.ops.yab_mcp.run_command("EXEC_DEFAULT", True)
     except RuntimeError:
         if "handler" in _pending:
             _pending.clear()
@@ -256,10 +256,10 @@ def _call_handler(cmd_type, handler, params):
     return outcome.get("result")
 
 
-class BLENDERMCP_OT_RunCommand(bpy.types.Operator):
+class YAB_MCP_OT_RunCommand(bpy.types.Operator):
     """Internal: executes one MCP command as a single undo step"""
-    bl_idname = "blendermcp.run_command"
-    bl_label = "BlenderMCP"
+    bl_idname = "yab_mcp.run_command"
+    bl_label = "YABlenderMCP"
     bl_options = {"UNDO", "INTERNAL"}
 
     def execute(self, context):
@@ -314,7 +314,7 @@ def start_server(port=None, token=None):
     if _server and _server.running and _server.port == port and _server.token == token:
         return _server
     stop_server()
-    _server = BlenderMCPServer(port=port, token=token)
+    _server = YABlenderMCPServer(port=port, token=token)
     if _server.start() and not bpy.app.background and not bpy.app.timers.is_registered(_drain):
         bpy.app.timers.register(_drain, first_interval=0.05, persistent=True)
     return _server
@@ -330,16 +330,16 @@ def stop_server():
 
 
 def _cli_serve(argv):
-    """Headless mode: blender -b [file.blend] -c blendermcp [--port N] [--token T]"""
+    """Headless mode: blender -b [file.blend] -c yab_mcp [--port N] [--token T]"""
     import argparse
-    parser = argparse.ArgumentParser(prog="blender -b -c blendermcp")
+    parser = argparse.ArgumentParser(prog="blender -b -c yab_mcp")
     parser.add_argument("--port", type=int, default=None, help="default: the add-on's Port preference")
     parser.add_argument("--token", default=None, help="default: the add-on's Token preference")
     args = parser.parse_args(argv)
     srv = start_server(args.port, args.token)
     if not srv.running:
         return 1
-    print(f"[BlenderMCP] Headless server ready on 127.0.0.1:{srv.port} (Ctrl+C to stop)", flush=True)
+    print(f"[YABlenderMCP] Headless server ready on 127.0.0.1:{srv.port} (Ctrl+C to stop)", flush=True)
     try:
         while srv.running:
             if not srv.process_jobs(budget=0.5):
@@ -355,18 +355,18 @@ def _prefs():
     return addon.preferences if addon else None
 
 
-class BLENDERMCP_Preferences(bpy.types.AddonPreferences):
+class YAB_MCP_Preferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
     port: IntProperty(name="Port", default=DEFAULT_PORT, min=1024, max=65535)
     auto_start: BoolProperty(
         name="Start server when Blender opens",
-        description="Start the BlenderMCP server automatically after Blender launches",
+        description="Start the YABlenderMCP server automatically after Blender launches",
         default=False,
     )
     token: StringProperty(
         name="Token",
-        description="Optional shared secret. If set, the MCP server must send the same value (BLENDER_MCP_TOKEN)",
+        description="Optional shared secret. If set, the MCP server must send the same value (YAB_MCP_TOKEN)",
         default="",
         subtype="PASSWORD",
     )
@@ -378,12 +378,12 @@ class BLENDERMCP_Preferences(bpy.types.AddonPreferences):
         layout.prop(self, "token")
 
 
-class BLENDERMCP_PT_Panel(bpy.types.Panel):
-    bl_label = "BlenderMCP"
-    bl_idname = "BLENDERMCP_PT_Panel"
+class YAB_MCP_PT_Panel(bpy.types.Panel):
+    bl_label = "YABlenderMCP"
+    bl_idname = "YAB_MCP_PT_Panel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "BlenderMCP"
+    bl_category = "YABlenderMCP"
 
     def draw(self, context):
         layout = self.layout
@@ -393,11 +393,11 @@ class BLENDERMCP_PT_Panel(bpy.types.Panel):
             layout.prop(prefs, "auto_start")
         srv = get_server()
         if srv is None or not srv.running:
-            layout.operator("blendermcp.start_server", text="Start Server")
+            layout.operator("yab_mcp.start_server", text="Start Server")
             if srv and srv.last_error:
                 layout.label(text=srv.last_error, icon="ERROR")
         else:
-            layout.operator("blendermcp.stop_server", text="Stop Server")
+            layout.operator("yab_mcp.stop_server", text="Stop Server")
             col = layout.column(align=True)
             col.label(text=f"Running on 127.0.0.1:{srv.port}", icon="CHECKMARK")
             col.label(text=f"Clients: {srv.clients}   Commands: {srv.commands}")
@@ -405,29 +405,29 @@ class BLENDERMCP_PT_Panel(bpy.types.Panel):
                 col.label(text=f"Last: {srv.last_command}")
 
 
-class BLENDERMCP_OT_StartServer(bpy.types.Operator):
-    bl_idname = "blendermcp.start_server"
-    bl_label = "Start BlenderMCP Server"
+class YAB_MCP_OT_StartServer(bpy.types.Operator):
+    bl_idname = "yab_mcp.start_server"
+    bl_label = "Start YABlenderMCP Server"
 
     def execute(self, context):
         srv = start_server()
         if not srv.running:
-            self.report({"ERROR"}, f"BlenderMCP could not start: {srv.last_error}")
+            self.report({"ERROR"}, f"YABlenderMCP could not start: {srv.last_error}")
             return {"CANCELLED"}
         return {"FINISHED"}
 
 
-class BLENDERMCP_OT_StopServer(bpy.types.Operator):
-    bl_idname = "blendermcp.stop_server"
-    bl_label = "Stop BlenderMCP Server"
+class YAB_MCP_OT_StopServer(bpy.types.Operator):
+    bl_idname = "yab_mcp.stop_server"
+    bl_label = "Stop YABlenderMCP Server"
 
     def execute(self, context):
         stop_server()
         return {"FINISHED"}
 
 
-_classes = (BLENDERMCP_Preferences, BLENDERMCP_PT_Panel, BLENDERMCP_OT_StartServer, BLENDERMCP_OT_StopServer,
-            BLENDERMCP_OT_RunCommand)
+_classes = (YAB_MCP_Preferences, YAB_MCP_PT_Panel, YAB_MCP_OT_StartServer, YAB_MCP_OT_StopServer,
+            YAB_MCP_OT_RunCommand)
 _cli_command = None
 
 
@@ -445,7 +445,7 @@ def register():
     if not bpy.app.background and not bpy.app.timers.is_registered(_auto_start):
         bpy.app.timers.register(_auto_start, first_interval=1.0)
     if hasattr(bpy.utils, "register_cli_command"):
-        _cli_command = bpy.utils.register_cli_command("blendermcp", _cli_serve)
+        _cli_command = bpy.utils.register_cli_command("yab_mcp", _cli_serve)
 
 
 def unregister():

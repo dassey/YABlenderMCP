@@ -406,7 +406,7 @@ def set_properties(target: str, properties: dict) -> dict:
 
 def get_operator_history(limit: int = 20) -> dict:
     """Operators recently run in this Blender session (includes what the user did by hand)."""
-    ops = [op for op in bpy.context.window_manager.operators if not op.bl_idname.startswith("BLENDERMCP_OT")]
+    ops = [op for op in bpy.context.window_manager.operators if not op.bl_idname.startswith("YAB_MCP_OT")]
     history = []
     for op in ops[-max(1, min(limit, 64)):]:
         entry = {"id": op.bl_idname, "name": op.name}

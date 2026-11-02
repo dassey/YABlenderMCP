@@ -66,7 +66,7 @@ def get_viewport_screenshot(max_size: int = 800, format: str = "png") -> dict:
     except Exception:
         # Fallback: grab the window's area (forces a redraw first so the capture is current).
         ext = format.lower()
-        filepath = os.path.join(tempfile.gettempdir(), f"blender_mcp_screenshot.{ext}")
+        filepath = os.path.join(tempfile.gettempdir(), f"yab_mcp_screenshot.{ext}")
         with bpy.context.temp_override(window=ctx["window"], area=ctx["area"]):
             bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
             bpy.ops.screen.screenshot_area(filepath=filepath)
@@ -202,8 +202,8 @@ def _pixels_to_base64(pixels):
     height, width = pixels.shape[0], pixels.shape[1]
     pixels = pixels.copy()
     pixels[..., 3] = 1.0
-    img = bpy.data.images.new("_blendermcp_capture", width, height, alpha=True)
-    filepath = os.path.join(tempfile.gettempdir(), "blender_mcp_capture.png")
+    img = bpy.data.images.new("_yab_mcp_capture", width, height, alpha=True)
+    filepath = os.path.join(tempfile.gettempdir(), "yab_mcp_capture.png")
     try:
         img.pixels.foreach_set(np.clip(pixels, 0.0, 1.0).ravel())
         img.filepath_raw = filepath

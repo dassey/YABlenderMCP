@@ -243,7 +243,7 @@ def save_checkpoint(label: str = "") -> dict:
     source = bpy.data.filepath
     stem = os.path.splitext(os.path.basename(source))[0] if source else "untitled"
     folder = os.path.join(os.path.dirname(source), f"{stem}_checkpoints") if source else \
-        os.path.join(tempfile.gettempdir(), "blendermcp_checkpoints")
+        os.path.join(tempfile.gettempdir(), "yab_mcp_checkpoints")
     os.makedirs(folder, exist_ok=True)
     tag = re.sub(r"[^A-Za-z0-9_-]+", "_", label).strip("_")[:40]
     path = os.path.join(folder, f"{stem}_{time.strftime('%Y%m%d_%H%M%S')}{'_' + tag if tag else ''}.blend")

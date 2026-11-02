@@ -143,7 +143,7 @@ def _encode_preview(path, max_size):
     if max(w, h) > max_size:
         scale = max_size / max(w, h)
         img.resize((max(1, int(w * scale)), max(1, int(h * scale))), method="BILINEAR")
-    tmp = os.path.join(tempfile.gettempdir(), "blender_mcp_render_preview.png")
+    tmp = os.path.join(tempfile.gettempdir(), "yab_mcp_render_preview.png")
     imbuf.write(img, filepath=tmp)
     try:
         with open(tmp, "rb") as f:
@@ -161,7 +161,7 @@ def render_frame(frame: int = -1, output_path: str = "", max_size: int = 1024) -
 
     old_path = scene.render.filepath
     old_media = scene.render.image_settings.media_type
-    target = output_path or os.path.join(tempfile.gettempdir(), "blender_mcp_render.png")
+    target = output_path or os.path.join(tempfile.gettempdir(), "yab_mcp_render.png")
     scene.render.filepath = target
     if scene.render.image_settings.media_type == "VIDEO":
         scene.render.image_settings.media_type = "IMAGE"

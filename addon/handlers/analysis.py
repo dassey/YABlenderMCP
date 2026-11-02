@@ -265,7 +265,7 @@ def compare_silhouette(objects: list, reference_image: str, view: str = "front",
     overlay[m & ~r, :3] = (0.2, 0.45, 1.0)
     overlay[~m & r, :3] = (1.0, 0.25, 0.2)
     img = bpy.data.images.new("_mcp_overlay", grid, grid, alpha=True)
-    path = os.path.join(tempfile.gettempdir(), "blender_mcp_overlay.png")
+    path = os.path.join(tempfile.gettempdir(), "yab_mcp_overlay.png")
     try:
         img.pixels.foreach_set(overlay[::-1].ravel())
         img.filepath_raw = path

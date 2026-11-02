@@ -1,11 +1,11 @@
-"""The usage guide (skills/blender-mcp/SKILL.md) served over MCP, for clients without Agent Skills support."""
+"""The usage guide (skills/yab-mcp/SKILL.md) served over MCP, for clients without Agent Skills support."""
 
 import os
 
 from .compat import READ, FastMCP
 
 GUIDE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                          "skills", "blender-mcp", "SKILL.md")
+                          "skills", "yab-mcp", "SKILL.md")
 
 
 def guide_text() -> str:
@@ -25,7 +25,7 @@ def register(mcp: FastMCP, groups: list[str]):
         API pitfalls and what errors mean. Read it once before multi-step work."""
         return guide_text() + f"\n\nTool groups enabled in this session: {', '.join(groups)}."
 
-    @mcp.resource("blender://guide", name="usage_guide", mime_type="text/markdown",
+    @mcp.resource("yab-mcp://guide", name="usage_guide", mime_type="text/markdown",
                   description="How to use the Blender tools well (same text as get_usage_guide)")
     def usage_guide() -> str:
         return guide_text()

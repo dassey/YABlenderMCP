@@ -215,7 +215,7 @@ def create_light_rig(preset: str = "three_point", objects: list = None, intensit
     if key not in _RIGS:
         raise ValueError(f"preset must be one of {', '.join(_RIGS)}")
     center, radius = _bounds(_scene_targets(objects))
-    collection = bpy.data.collections.get("MCP Lights") or bpy.data.collections.new("MCP Lights")
+    collection = bpy.data.collections.get("YABlenderMCP Lights") or bpy.data.collections.new("YABlenderMCP Lights")
     if collection.name not in bpy.context.scene.collection.children:
         bpy.context.scene.collection.children.link(collection)
     created = []

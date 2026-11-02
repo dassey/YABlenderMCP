@@ -4,7 +4,7 @@
                       [--skill-dir DIR]
     python install.py --uninstall [--blender PATH] [--skill-dir DIR]
 
-Installs the mcp package for this Python if needed, builds addon.zip, installs and enables
+Installs the mcp package for this Python if needed, builds yab-mcp-addon.zip, installs and enables
 the add-on in Blender with "Start server when Blender opens" on, tests it in a headless
 Blender, and prints the MCP client entry. The last line starts with OK or FAILED; the exit
 code is 0 on success.
@@ -24,48 +24,68 @@ import time
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 MAIN = os.path.join(ROOT, "server", "main.py")
-SKILL = os.path.join(ROOT, "skills", "blender-mcp")
+SKILL = os.path.join(ROOT, "skills", "yab-mcp")
 MIN_BLENDER = (5, 1)
 MIN_MCP = (1, 30)
 
-# Runs inside Blender in background mode. Arguments after "--": action, zip path, port, auto start.
+# Runs inside Blender in background mode. Arguments after "--": action, zip path, port ("" = keep),
+# auto start ("0" = off, "" = keep / on).
 _IN_BLENDER = r'''
-import json, os, sys
+import json, os, shutil, sys
 import addon_utils, bpy
 
+NAME, OLD_NAME = "yab_mcp", "blendermcp"  # the add-on was called blendermcp before 2.1
 action, zip_path, port, auto_start = sys.argv[sys.argv.index("--") + 1:][:4]
+addons = bpy.context.preferences.addons
 out = {"blender": bpy.app.version_string}
+
+
+def remove(module):
+    """Disable one of our add-ons and delete its folder (preferences.addon_remove needs a UI area)."""
+    for mod in addon_utils.modules():
+        folder = os.path.dirname(mod.__file__)
+        if (mod.__name__ == module and os.path.basename(folder) == module
+                and os.path.isfile(os.path.join(folder, "handlers", "__init__.py"))):
+            if module in addons:
+                bpy.ops.preferences.addon_disable(module=module)
+            shutil.rmtree(folder)
+            return True
+    if module in addons:  # still listed in the preferences, but its files are gone
+        bpy.ops.preferences.addon_disable(module=module)
+    return False
+
+
 if action == "install":
+    old = addons.get(OLD_NAME)
+    keep = {}
+    if old is not None and old.preferences is not None:
+        keep = {k: getattr(old.preferences, k) for k in ("port", "token", "auto_start") if hasattr(old.preferences, k)}
+    out["migrated_from"] = OLD_NAME if remove(OLD_NAME) else None
     others = []
     for mod in addon_utils.modules():
         label = str(getattr(mod, "bl_info", {}).get("name", ""))
-        if mod.__name__ != "blendermcp" and "mcp" in (mod.__name__ + label).lower() and addon_utils.check(mod.__name__)[1]:
+        if mod.__name__ != NAME and "mcp" in (mod.__name__ + label).lower() and addon_utils.check(mod.__name__)[1]:
             others.append(label or mod.__name__)
     out["other_mcp_addons"] = others
     bpy.ops.preferences.addon_install(filepath=zip_path, overwrite=True)
     # An older version may already be loaded in this session: unload it so the new files are imported.
-    if "blendermcp" in bpy.context.preferences.addons:
-        bpy.ops.preferences.addon_disable(module="blendermcp")
-    for name in [n for n in sys.modules if n == "blendermcp" or n.startswith("blendermcp.")]:
+    if NAME in addons:
+        bpy.ops.preferences.addon_disable(module=NAME)
+    for name in [n for n in sys.modules if n == NAME or n.startswith(NAME + ".")]:
         del sys.modules[name]
-    bpy.ops.preferences.addon_enable(module="blendermcp")
-    prefs = bpy.context.preferences.addons["blendermcp"].preferences
-    prefs.port = int(port)
-    prefs.auto_start = auto_start == "1"
-    import blendermcp
-    out["installed_to"] = os.path.dirname(blendermcp.__file__)
+    bpy.ops.preferences.addon_enable(module=NAME)
+    prefs = addons[NAME].preferences
+    prefs.port = int(port) if port else keep.get("port", prefs.port)
+    prefs.auto_start = False if auto_start == "0" else keep.get("auto_start", True)
+    if keep.get("token"):
+        prefs.token = keep["token"]
+    import yab_mcp
+    out.update(installed_to=os.path.dirname(yab_mcp.__file__), port=prefs.port, auto_start=prefs.auto_start,
+               token_set=bool(prefs.token))
 else:
-    import shutil
-    if "blendermcp" in bpy.context.preferences.addons:
-        bpy.ops.preferences.addon_disable(module="blendermcp")
-    # preferences.addon_remove needs a UI area, so delete the add-on folder directly.
-    for mod in addon_utils.modules():
-        folder = os.path.dirname(mod.__file__)
-        if mod.__name__ == "blendermcp" and os.path.basename(folder) == "blendermcp":
-            shutil.rmtree(folder)
-    out["removed"] = True
+    out["removed"] = [m for m in (NAME, OLD_NAME) if remove(m)]
 bpy.ops.wm.save_userpref()
-print("BLENDERMCP_RESULT " + json.dumps(out), flush=True)
+print("YAB_MCP_RESULT " + json.dumps(out), flush=True)
 '''
 
 
@@ -160,16 +180,16 @@ def blender_running():
         return False
 
 
-def run_in_blender(blender, action, zip_path="", port=9001, auto_start=True):
+def run_in_blender(blender, action, zip_path="", port=None, auto_start=None):
     with tempfile.TemporaryDirectory() as tmp:
-        script = os.path.join(tmp, "blendermcp_setup.py")
+        script = os.path.join(tmp, "yab_mcp_setup.py")
         with open(script, "w", encoding="utf-8") as f:
             f.write(_IN_BLENDER)
         cmd = [blender, "-b", "--python-exit-code", "1", "--python", script,
-               "--", action, zip_path, str(port), "1" if auto_start else "0"]
+               "--", action, zip_path, str(port or ""), "0" if auto_start is False else ""]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, encoding="utf-8", errors="replace")
     for line in result.stdout.splitlines():
-        if line.startswith("BLENDERMCP_RESULT "):
+        if line.startswith("YAB_MCP_RESULT "):
             return json.loads(line.split(" ", 1)[1])
     raise InstallError(f"Blender could not {action} the add-on:\n{_tail(result.stdout + result.stderr)}")
 
@@ -179,9 +199,9 @@ def verify(blender):
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
-    log_path = os.path.join(tempfile.gettempdir(), f"blendermcp_verify_{port}.log")
+    log_path = os.path.join(tempfile.gettempdir(), f"yab_mcp_verify_{port}.log")
     with open(log_path, "w", encoding="utf-8") as log:
-        proc = subprocess.Popen([blender, "-b", "-c", "blendermcp", "--port", str(port), "--token", ""],
+        proc = subprocess.Popen([blender, "-b", "-c", "yab_mcp", "--port", str(port), "--token", ""],
                                 stdout=log, stderr=subprocess.STDOUT)
         try:
             deadline = time.time() + 120
@@ -191,8 +211,9 @@ def verify(blender):
                     break
                 except OSError:
                     time.sleep(0.5)
-            env = {k: v for k, v in os.environ.items() if k not in ("BLENDER_MCP_TOKEN", "BLENDER_MCP_HOST")}
-            env.update(BLENDER_MCP_PORT=str(port), PYTHONUTF8="1")
+            env = {k: v for k, v in os.environ.items()
+                   if k not in ("YAB_MCP_TOKEN", "YAB_MCP_HOST", "BLENDER_MCP_TOKEN", "BLENDER_MCP_HOST")}
+            env.update(YAB_MCP_PORT=str(port), PYTHONUTF8="1")
             check = subprocess.run([sys.executable, MAIN, "--check"], capture_output=True, text=True, env=env,
                                    timeout=180, encoding="utf-8", errors="replace")
         finally:
@@ -209,26 +230,43 @@ def verify(blender):
     os.remove(log_path)
 
 
-def skill_target(skill_dir):
-    return os.path.join(os.path.abspath(os.path.expanduser(skill_dir)), os.path.basename(SKILL))
+def skill_target(skill_dir, name=None):
+    return os.path.join(os.path.abspath(os.path.expanduser(skill_dir)), name or os.path.basename(SKILL))
 
 
-def client_entry(port):
+def remove_skill(skill_dir):
+    """Remove the skill, and its pre-2.1 copy (folder blender-mcp) when that copy is ours."""
+    removed = []
+    for name in (os.path.basename(SKILL), "blender-mcp"):
+        target = skill_target(skill_dir, name)
+        doc = os.path.join(target, "SKILL.md")
+        if os.path.isfile(doc):
+            with open(doc, encoding="utf-8", errors="replace") as f:
+                ours = "YABlenderMCP" in f.read()
+            if ours:
+                shutil.rmtree(target)
+                removed.append(target)
+    return removed
+
+
+def client_entry(port, token_set):
     entry = {"command": sys.executable, "args": [MAIN], "env": {"PYTHONUTF8": "1"}}
     if port != 9001:
-        entry["env"]["BLENDER_MCP_PORT"] = str(port)
-    return {"mcpServers": {"blender": entry}}
+        entry["env"]["YAB_MCP_PORT"] = str(port)
+    if token_set:
+        entry["env"]["YAB_MCP_TOKEN"] = "<the Token from the add-on preferences>"
+    return {"mcpServers": {"yab-mcp": entry}}
 
 
 def main():
     parser = argparse.ArgumentParser(description="Install YABlenderMCP into Blender and test it.")
     parser.add_argument("--blender", help="path to the Blender executable (default: search the usual places)")
-    parser.add_argument("--port", type=int, default=9001, help="add-on port (default 9001)")
+    parser.add_argument("--port", type=int, help="add-on port (default: keep the current one, else 9001)")
     parser.add_argument("--no-autostart", action="store_true", help="don't start the server when Blender opens")
     parser.add_argument("--skip-verify", action="store_true", help="skip the headless self-test")
     parser.add_argument("--force", action="store_true", help="install even if Blender seems to be running")
     parser.add_argument("--uninstall", action="store_true", help="disable and remove the add-on")
-    parser.add_argument("--skill-dir", help="also copy the blender-mcp skill into this skills folder "
+    parser.add_argument("--skill-dir", help="also copy the yab-mcp skill into this skills folder "
                                             "(for clients that support Agent Skills)")
     args = parser.parse_args()
 
@@ -241,10 +279,9 @@ def main():
 
     if args.uninstall:
         run_in_blender(blender, "uninstall")
-        if args.skill_dir and os.path.isdir(skill_target(args.skill_dir)):
-            shutil.rmtree(skill_target(args.skill_dir))
-            print(f"Skill removed: {skill_target(args.skill_dir)}")
-        print("OK: add-on removed from Blender. Also remove the \"blender\" entry from your MCP client config.")
+        for path in remove_skill(args.skill_dir) if args.skill_dir else []:
+            print(f"Skill removed: {path}")
+        print("OK: add-on removed from Blender. Also remove the \"yab-mcp\" entry from your MCP client config.")
         return
 
     ensure_mcp()
@@ -252,9 +289,12 @@ def main():
     from build_addon import build
     zip_path = build()
     print(f"Built {zip_path}")
-    result = run_in_blender(blender, "install", zip_path, args.port, not args.no_autostart)
+    result = run_in_blender(blender, "install", zip_path, args.port, False if args.no_autostart else None)
     print(f"Add-on installed and enabled: {result['installed_to']}")
-    print(f"  port {args.port}, start server when Blender opens: {'off' if args.no_autostart else 'on'}")
+    if result.get("migrated_from"):
+        print(f"  Replaced the old add-on '{result['migrated_from']}' (settings kept)")
+    print(f"  port {result['port']}, start server when Blender opens: {'on' if result['auto_start'] else 'off'}"
+          + (", token set" if result["token_set"] else ""))
     if result.get("other_mcp_addons"):
         print(f"  Warning: other MCP add-ons are enabled: {', '.join(result['other_mcp_addons'])}. "
               "Disable them in Edit > Preferences > Add-ons if they clash.")
@@ -262,15 +302,13 @@ def main():
         print("Self-test with a headless Blender ...", flush=True)
         verify(blender)
     if args.skill_dir:
-        target = skill_target(args.skill_dir)
-        if os.path.isdir(target):
-            shutil.rmtree(target)
-        shutil.copytree(SKILL, target)
-        print(f"Skill copied to {target}")
-    print("\nAdd this entry to your MCP client's config, then restart the client:")
-    print(json.dumps(client_entry(args.port), indent=2))
+        remove_skill(args.skill_dir)
+        shutil.copytree(SKILL, skill_target(args.skill_dir))
+        print(f"Skill copied to {skill_target(args.skill_dir)}")
+    print("\nAdd this entry to your MCP client's config (replace an older \"blender\" entry), then restart the client:")
+    print(json.dumps(client_entry(result["port"], result["token_set"]), indent=2))
     print("\nOK: YABlenderMCP is installed. Open Blender; the server "
-          + ("starts by itself." if not args.no_autostart else "starts from the BlenderMCP tab (press N)."))
+          + ("starts by itself." if result["auto_start"] else "starts from the YABlenderMCP tab (press N)."))
 
 
 if __name__ == "__main__":

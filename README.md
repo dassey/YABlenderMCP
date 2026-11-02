@@ -1,6 +1,6 @@
 # <img src="logo.jpg" width="48" align="center"> YABlenderMCP
 
-MCP server that lets an AI agent work in Blender 5.1 on your computer: modeling, materials, lighting, animation, rendering and 3D-print preparation.
+YABlenderMCP (short name `yab-mcp`) is an MCP server that lets an AI agent work in Blender 5.1 on your computer: modeling, materials, lighting, animation, rendering and 3D-print preparation.
 
 - 106 tools, 4 prompts, and a skill that teaches the AI how to use them.
 - Local only. No API keys, no accounts, no telemetry. The MCP server refuses network connections to any machine except this one.
@@ -38,7 +38,7 @@ macOS / Linux:
 The installer:
 
 1. Installs the `mcp` package into `.venv`.
-2. Builds `addon.zip`, installs it into Blender, enables it and turns on **Start server when Blender opens**.
+2. Builds `yab-mcp-addon.zip`, installs it into Blender, enables it and turns on **Start server when Blender opens**. An older version (called BlenderMCP before 2.1) is replaced, and its port, token and auto-start settings are kept.
 3. Tests it: it starts a headless Blender and connects to it.
 4. Prints the entry for your MCP client, with full paths.
 
@@ -49,7 +49,7 @@ Then add the printed entry to your MCP client's config, restart the client and o
 ```json
 {
   "mcpServers": {
-    "blender": {
+    "yab-mcp": {
       "command": "C:\\path\\to\\YABlenderMCP\\.venv\\Scripts\\python.exe",
       "args": ["C:\\path\\to\\YABlenderMCP\\server\\main.py"],
       "env": {"PYTHONUTF8": "1"}
@@ -65,7 +65,7 @@ Then add the printed entry to your MCP client's config, restart the client and o
 | `--no-autostart` | Don't start the server when Blender opens; use the Start Server button instead. |
 | `--skip-verify` | Skip the headless self-test. |
 | `--force` | Install even if Blender seems to be running. |
-| `--skill-dir DIR` | Also copy the `blender-mcp` skill into this skills folder (for clients that support Agent Skills). |
+| `--skill-dir DIR` | Also copy the `yab-mcp` skill into this skills folder (for clients that support Agent Skills). |
 | `--uninstall` | Disable and remove the add-on (and the skill, with `--skill-dir`). |
 
 **Update:** `git pull`, run the installer again, then restart Blender and the MCP client.
@@ -75,8 +75,8 @@ Then add the printed entry to your MCP client's config, restart the client and o
 **Manual install** (no installer):
 
 1. `pip install -r requirements.txt` and `python build_addon.py`.
-2. In Blender: Edit > Preferences > Add-ons > dropdown (top right) > **Install from Disk...** > pick `addon.zip` > enable **BlenderMCP**. Remove any other add-on named BlenderMCP first.
-3. 3D viewport > press N > **BlenderMCP** tab > **Start Server** (or tick **Start server when Blender opens**).
+2. In Blender: Edit > Preferences > Add-ons > dropdown (top right) > **Install from Disk...** > pick `yab-mcp-addon.zip` > enable **YABlenderMCP**. First remove older versions (called BlenderMCP before 2.1) and any other Blender MCP add-on.
+3. 3D viewport > press N > **YABlenderMCP** tab > **Start Server** (or tick **Start server when Blender opens**).
 4. Add the client entry above, with `command` set to the Python that has `mcp` installed.
 
 For development on Windows, `install_addon.bat` copies source changes into the installed add-on (restart Blender afterwards).
@@ -94,7 +94,7 @@ Follow these steps in order. Run commands from the repository folder.
    - `FAILED: Blender not found`: run it again with `--blender "<full path to the Blender executable>"`.
    - Any other `FAILED:` line: report it to the user word for word.
 4. Register the server in your MCP client using exactly the `command` and `args` the installer printed: absolute paths, with `command` being the venv's Python. Keep `"PYTHONUTF8": "1"`. Don't use a bare `python`, which may be a Python without the `mcp` package.
-5. Tell the user to restart the MCP client and open Blender. The server starts by itself; the BlenderMCP tab (N panel) shows "Running on 127.0.0.1:9001".
+5. Tell the user to restart the MCP client and open Blender. The server starts by itself; the YABlenderMCP tab (N panel) shows "Running on 127.0.0.1:9001".
 6. With Blender open, verify: `<venv python> server/main.py --check` must exit with code 0 and print `MCP server OK: 106 tools` and `... reachable on port 9001`.
 
 Don't:
@@ -105,10 +105,10 @@ Don't:
 
 ### Using the tools
 
-`skills/blender-mcp/SKILL.md` is the playbook for the AI. It covers what is available, which tool to use for what, how to check results, units, undo, the 3D-print and 2D-to-3D workflows, Blender 5.1 API pitfalls and what each error means. It reaches the model in two ways:
+`skills/yab-mcp/SKILL.md` is the playbook for the AI. It covers what is available, which tool to use for what, how to check results, units, undo, the 3D-print and 2D-to-3D workflows, Blender 5.1 API pitfalls and what each error means. It reaches the model in two ways:
 
-- **Every MCP client:** the server serves it as the `get_usage_guide` tool and the `blender://guide` resource, and the connect instructions tell the model to read it.
-- **Clients with Agent Skills support:** copy `skills/blender-mcp` into the client's skills folder, or run the installer with `--skill-dir`. It then loads by itself for Blender tasks.
+- **Every MCP client:** the server serves it as the `get_usage_guide` tool and the `yab-mcp://guide` resource, and the connect instructions tell the model to read it.
+- **Clients with Agent Skills support:** copy `skills/yab-mcp` into the client's skills folder, or run the installer with `--skill-dir`. It then loads by itself for Blender tasks.
 
 The server also sends these rules to the model when it connects:
 
@@ -134,19 +134,21 @@ Environment variables for the MCP server (set them in the client config's `env`)
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `BLENDER_MCP_HOST` | `127.0.0.1` | Where the add-on listens |
-| `BLENDER_MCP_PORT` | `9001` | Add-on port; must match the add-on's **Port** |
-| `BLENDER_MCP_TIMEOUT` | `180` | Seconds to wait for a command (long tools raise their own limit) |
-| `BLENDER_MCP_TOKEN` | empty | Shared secret; must match the add-on's **Token** |
-| `BLENDER_MCP_TOOLSETS` | all | Only expose these tool groups (see below) |
+| `YAB_MCP_HOST` | `127.0.0.1` | Where the add-on listens |
+| `YAB_MCP_PORT` | `9001` | Add-on port; must match the add-on's **Port** |
+| `YAB_MCP_TIMEOUT` | `180` | Seconds to wait for a command (long tools raise their own limit) |
+| `YAB_MCP_TOKEN` | empty | Shared secret; must match the add-on's **Token** |
+| `YAB_MCP_TOOLSETS` | all | Only expose these tool groups (see below) |
+
+The names used before 2.1 (`BLENDER_MCP_*`) still work.
 | `PYTHONUTF8` | | Set to `1` on Windows |
 
-Add-on preferences (Edit > Preferences > Add-ons > BlenderMCP): **Port**, **Start server when Blender opens**, **Token**.
+Add-on preferences (Edit > Preferences > Add-ons > YABlenderMCP): **Port**, **Start server when Blender opens**, **Token**.
 
 **Fewer tools.** Some clients work better with fewer tools. List the groups you want; `execute_blender_code` is always included:
 
 ```json
-"env": {"PYTHONUTF8": "1", "BLENDER_MCP_TOOLSETS": "scene,viewport,materials,print"}
+"env": {"PYTHONUTF8": "1", "YAB_MCP_TOOLSETS": "scene,viewport,materials,print"}
 ```
 
 Groups: `session`, `scene`, `viewport`, `materials`, `modifiers`, `io`, `animation`, `nodes`, `render`, `mesh`, `lighting`, `print`, `analysis`.
@@ -154,14 +156,14 @@ Groups: `session`, `scene`, `viewport`, `materials`, `modifiers`, `io`, `animati
 **Token.** Put the same value in the add-on's Token field and in the client config:
 
 ```json
-"env": {"PYTHONUTF8": "1", "BLENDER_MCP_TOKEN": "pick-a-secret"}
+"env": {"PYTHONUTF8": "1", "YAB_MCP_TOKEN": "pick-a-secret"}
 ```
 
 **Headless Blender (no window).** After the add-on is installed and enabled once:
 
 ```bash
-blender -b path/to/scene.blend -c blendermcp
-blender -b -c blendermcp --port 9002 --token pick-a-secret
+blender -b path/to/scene.blend -c yab_mcp
+blender -b -c yab_mcp --port 9002 --token pick-a-secret
 ```
 
 Port and token default to the add-on preferences. Ctrl+C stops it. Headless mode has no viewport tools (`get_viewport_screenshot`, `capture_views`, `find_object_at`, `set_view`, shading) and no undo; modeling, print, file and render tools and `compare_silhouette` work.
@@ -170,7 +172,7 @@ Port and token default to the add-on preferences. Ctrl+C stops it. Headless mode
 
 - The add-on listens on 127.0.0.1 only. The optional token is checked on every command.
 - A connection that sends anything other than JSON (for example a web page probing the port) is dropped.
-- The MCP server process blocks network connections to anything except this computer and `BLENDER_MCP_HOST`.
+- The MCP server process blocks network connections to anything except this computer and `YAB_MCP_HOST`. Python run inside Blender (`execute_blender_code`) is not limited this way.
 - `open_blend` loads files with embedded scripts disabled.
 - Undo: each scene-changing call, including `execute_blender_code` and `execute_batch`, is exactly one undo step. `undo` / `redo` step back and forward. `save_checkpoint` saves a copy of the scene before risky work.
 - Scene-changing calls are refused while a render is running.
@@ -377,9 +379,9 @@ python tests/test_connection.py 9001     # raw TCP smoke test
 |---|---|
 | FAILED: Blender is running | Close every Blender window and run the installer again. |
 | FAILED: Blender not found / Need Blender 5.1 | Pass `--blender` with the full path to `blender.exe` (not `blender-launcher.exe`). |
-| Could not connect to Blender | Open Blender. If the BlenderMCP tab shows no running server, click Start Server; check the port matches `BLENDER_MCP_PORT`. |
+| Could not connect to Blender | Open Blender. If the YABlenderMCP tab shows no running server, click Start Server; check the port matches `YAB_MCP_PORT`. |
 | Unknown command ... | The add-on in Blender is older than the MCP server; reinstall it and restart Blender. |
-| Invalid or missing token | Set `BLENDER_MCP_TOKEN` to the add-on's Token (or clear both). |
-| Port already in use | Another program or a second Blender uses it; change Port in the add-on and `BLENDER_MCP_PORT`. |
+| Invalid or missing token | Set `YAB_MCP_TOKEN` to the add-on's Token (or clear both). |
+| Port already in use | Another program or a second Blender uses it; change Port in the add-on and `YAB_MCP_PORT`. |
 | A render is running | Wait until `get_render_status` reports finished. |
 | ZIP packaged incorrectly | Build the zip with `python build_addon.py`. |

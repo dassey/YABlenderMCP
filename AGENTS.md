@@ -4,6 +4,15 @@ Guide for AI agents working on or with this project.
 
 ---
 
+## Names
+
+- **YABlenderMCP**: the long name, for anything people read (README, add-on name, N-panel tab, log lines, messages).
+- **yab-mcp**: the short name: MCP server name, client config key, skill (`skills/yab-mcp`), `yab-mcp://guide`, zip, future PyPI/registry name.
+- **yab_mcp** only where hyphens are not allowed: add-on module/folder, operator ids (`yab_mcp.*`), classes (`YAB_MCP_*`), `blender -c yab_mcp`. Env vars are `YAB_MCP_*`.
+- Never generic names like blender-mcp / BlenderMCP. The add-on was called `blendermcp` before 2.1; `install.py` replaces it.
+
+---
+
 ## What This Project Is
 
 **YABlenderMCP** — a custom MCP (Model Context Protocol) server that gives AI agents full control over Blender 5.1. Built from scratch because the user doesn't trust third-party MCPs that need API keys or phone home to external services.
@@ -20,7 +29,7 @@ Two processes that talk to each other over TCP:
 AI Client  <--stdio/MCP-->  server/main.py  <--TCP:9001-->  Blender Addon (inside Blender)
 ```
 
-1. **MCP Server** (`server/`) — Standalone Python. Speaks MCP (stdio) to AI clients. Forwards commands to Blender over TCP. An audit hook in `main.py` blocks every network connection except loopback and `BLENDER_MCP_HOST`.
+1. **MCP Server** (`server/`) — Standalone Python. Speaks MCP (stdio) to AI clients. Forwards commands to Blender over TCP. An audit hook in `main.py` blocks every network connection except loopback and `YAB_MCP_HOST`.
 2. **Blender Addon** (`addon/`) — Runs *inside* Blender. Listens on 127.0.0.1:9001. Socket threads only queue jobs; a persistent main-thread timer (`_drain`) executes them.
 
 Why two parts? `bpy` only works inside Blender's Python interpreter. The MCP server cannot `import bpy`. So the addon is the only thing that can touch Blender; the MCP server is a translator.
@@ -36,7 +45,7 @@ server/
                       strips null arguments
   connection.py     - TCP client (singleton BlenderConnection), send / params_of / jparse helpers
   prompts.py        - 4 MCP prompts: print_prep, build_scene, review_scene, image_to_model
-  guide.py          - serves skills/blender-mcp/SKILL.md as the get_usage_guide tool and blender://guide resource
+  guide.py          - serves skills/yab-mcp/SKILL.md as the get_usage_guide tool and yab-mcp://guide resource
   tools/
     code.py         - execute_blender_code (the workhorse)
     session.py      - 11: info, undo/redo, batch, units, clear, get/set properties, op history, API search/docs
@@ -54,9 +63,9 @@ server/
     analysis.py     - 6: distance, ray hit, pick, snapshot/diff, silhouette compare
 
 addon/
-  __init__.py       - bl_info (version 2.0.1), register/unregister delegate to server module
-  server.py         - BlenderMCPServer (TCP), job queue, undo wrapper operator, prefs, UI panel,
-                      headless CLI command (-c blendermcp)
+  __init__.py       - bl_info (version 2.1.0), register/unregister delegate to server module
+  server.py         - YABlenderMCPServer (TCP), job queue, undo wrapper operator, prefs, UI panel,
+                      headless CLI command (-c yab_mcp)
   handlers/
     __init__.py     - Handler registry: register_handler / get_handler + module imports
     common.py       - get_object (with "did you mean"), bbox helpers, view3d_context, unit scale
@@ -66,7 +75,7 @@ addon/
                     - one file per domain, matching server/tools/ (io_handlers named so to avoid clashing)
 
 skills/
-  blender-mcp/SKILL.md - the AI's playbook for using the tools (Agent Skills format; also served over MCP)
+  yab-mcp/SKILL.md  - the AI's playbook for using the tools (Agent Skills format; also served over MCP)
 
 tests/
   test_connection.py  - Standalone smoke test (direct TCP, no pytest)
@@ -76,7 +85,7 @@ docs/
 
 install.py          - one-step install: mcp package, build zip, install+enable add-on via background
                       Blender (auto start on), headless self-test, prints the client entry; --uninstall
-build_addon.py      - builds addon.zip (files under blendermcp/, as Blender requires)
+build_addon.py      - builds yab-mcp-addon.zip (files under yab_mcp/, as Blender requires)
 install_addon.bat   - Windows dev sync: copies source into the installed addon, or builds the zip on first run
 requirements.txt    - Only: mcp[cli]>=1.30 (1.x and 2.x both work)
 logo.jpg            - Repo icon (orange Blender cube with glowing cyan logos)
@@ -107,10 +116,10 @@ or
 {"status": "error", "message": "ValueError: Object 'Foo' not found. Did you mean: Foo.001?"}
 ```
 
-- Default timeout 180 s (`BLENDER_MCP_TIMEOUT`); long tools pass their own.
+- Default timeout 180 s (`YAB_MCP_TIMEOUT`); long tools pass their own.
 - The addon also accepts old un-terminated JSON messages; a line that is not JSON drops the client (cross-protocol protection).
 - `_dispatch` checks, in order: known command, render running (non-read-only commands are refused), parameters bind to the handler signature, then runs it.
-- **Undo:** commands run inside the internal operator `blendermcp.run_command` (`bl_options={"UNDO","INTERNAL"}`), called with `("EXEC_DEFAULT", True)` so exactly one undo step is pushed per command. Read-only commands (name starts with `get_`, `list_`, `find_`, `measure_`, `check_`, `analyze_`, `search_`, `capture_`, `compare_`, `snapshot_`, `diff_`, `ping`) and `_UNWRAPPED` ones (file load/save, undo/redo, renders, view changes) skip the wrapper.
+- **Undo:** commands run inside the internal operator `yab_mcp.run_command` (`bl_options={"UNDO","INTERNAL"}`), called with `("EXEC_DEFAULT", True)` so exactly one undo step is pushed per command. Read-only commands (name starts with `get_`, `list_`, `find_`, `measure_`, `check_`, `analyze_`, `search_`, `capture_`, `compare_`, `snapshot_`, `diff_`, `ping`) and `_UNWRAPPED` ones (file load/save, undo/redo, renders, view changes) skip the wrapper.
 - Errors reach the client as `ToolError`, so mcp 2.x shows the real message.
 
 ---
@@ -149,7 +158,7 @@ def register(mcp: FastMCP):
 
 Use `READ` for read-only tools and `DESTRUCTIVE` for deletes. If it's a new domain, create a new file and add it to the imports and `TOOLSETS` in `server/main.py`.
 
-**3. Update the playbook**: if the tool changes how a task is best done, add it to `skills/blender-mcp/SKILL.md` (the "Which tool for what" table) and to the README feature tables.
+**3. Update the playbook**: if the tool changes how a task is best done, add it to `skills/yab-mcp/SKILL.md` (the "Which tool for what" table) and to the README feature tables.
 
 **4. Reinstall the addon into Blender** (re-run `install_addon.bat` to sync the addon folder, then restart Blender). Restart the MCP client to pick up the new tool.
 
@@ -182,12 +191,12 @@ python tests/test_connection.py
 
 **Headless Blender** (addon installed and enabled once):
 ```bash
-blender -b scene.blend -c blendermcp --port 9001
+blender -b scene.blend -c yab_mcp --port 9001
 ```
 
 **Install addon into Blender:**
 - Install or upgrade (Blender closed): `.venv\Scripts\python install.py` — installs `mcp` into the venv, builds and installs the zip, enables the add-on with auto start, runs a headless self-test, prints the client entry. Last line `OK:` / `FAILED:`. Never use `--factory-startup` for this (it would save factory preferences).
-- Manual: `python build_addon.py`, then in Blender: Edit > Preferences > Add-ons > dropdown > Install from Disk > pick `addon.zip` > enable.
+- Manual: `python build_addon.py`, then in Blender: Edit > Preferences > Add-ons > dropdown > Install from Disk > pick `yab-mcp-addon.zip` > enable.
 - Afterward for dev iteration: re-run `install_addon.bat` — it detects the addon is already installed and syncs source files directly (restart Blender to pick up changes).
 
 ---
@@ -198,8 +207,8 @@ User-level MCP client config is at `C:/Users/msist/.claude.json`. The entry is:
 ```json
 {
   "mcpServers": {
-    "blender": {
-      "command": "python",
+    "yab-mcp": {
+      "command": "C:/Users/msist/Desktop/Agents/MCP/Blender/.venv/Scripts/python.exe",
       "args": ["C:/Users/msist/Desktop/Agents/MCP/Blender/server/main.py"],
       "env": {"PYTHONUTF8": "1"}
     }
@@ -207,7 +216,7 @@ User-level MCP client config is at `C:/Users/msist/.claude.json`. The entry is:
 }
 ```
 
-The client must be restarted to pick up config changes. Optional env: `BLENDER_MCP_PORT`, `BLENDER_MCP_HOST`, `BLENDER_MCP_TIMEOUT`, `BLENDER_MCP_TOKEN`, `BLENDER_MCP_TOOLSETS` (see README).
+The client must be restarted to pick up config changes. Optional env: `YAB_MCP_PORT`, `YAB_MCP_HOST`, `YAB_MCP_TIMEOUT`, `YAB_MCP_TOKEN`, `YAB_MCP_TOOLSETS` (see README; the old `BLENDER_MCP_*` names still work).
 
 ---
 
@@ -221,7 +230,7 @@ The client must be restarted to pick up config changes. Optional env: `BLENDER_M
 
 4. **Windows line endings**: Git complains about LF→CRLF conversion on commit. Harmless. Ignore.
 
-5. **The addon gets installed to** `%APPDATA%\Blender Foundation\Blender\5.1\scripts\addons\blendermcp\`. If there's an old Siddharth Ahuja BlenderMCP addon there, it might clash (same bl_info name). Uninstall it first.
+5. **The addon gets installed to** `%APPDATA%\Blender Foundation\Blender\5.1\scripts\addons\yab_mcp\` (before 2.1: `blendermcp\`, which `install.py` removes). If there's an old Siddharth Ahuja BlenderMCP addon there, it might clash (same bl_info name). Uninstall it first.
 
 6. **User has `execute_code` name collision awareness**: the handler is `execute_code`, the MCP tool is `execute_blender_code`. Don't rename either — the protocol depends on the handler name matching across both sides.
 
@@ -235,13 +244,13 @@ The client must be restarted to pick up config changes. Optional env: `BLENDER_M
 
 11. **Undo from Python**: `bpy.ops.x.y()` only pushes an undo step when called as `bpy.ops.x.y("EXEC_DEFAULT", True)`. Calling `ed.undo` inside a running script is unreliable; the `undo` tool runs it with a window override from the queue.
 
-12. **Addon zip layout**: Blender 5.1 rejects zips with `__init__.py` at the top level ("ZIP packaged incorrectly"). `build_addon.py` puts files under `blendermcp/`.
+12. **Addon zip layout**: Blender 5.1 rejects zips with `__init__.py` at the top level ("ZIP packaged incorrectly"). `build_addon.py` puts files under `yab_mcp/`.
 
-13. **Headless `-c blendermcp`** starts with an empty context (no `selected_objects`); handlers run inside a window override there. Viewport tools and undo need the UI.
+13. **Headless `-c yab_mcp`** (Blender command ids must be identifiers, so no hyphen) starts with an empty context (no `selected_objects`); handlers run inside a window override there. Viewport tools and undo need the UI.
 
 14. **Offscreen capture**: read `GPUOffScreen` pixels as FLOAT and convert; UBYTE readback through numpy came back garbled.
 
-15. **Upgrading the add-on from a script**: `addon_enable` does nothing when the add-on is already enabled, so the old code stays loaded (v1 had no preferences class). `install.py` disables it and drops `blendermcp*` from `sys.modules` before enabling. `preferences.addon_remove` needs a UI area and fails in background mode, so `--uninstall` deletes the folder itself.
+15. **Upgrading the add-on from a script**: `addon_enable` does nothing when the add-on is already enabled, so the old code stays loaded (v1 had no preferences class). `install.py` disables it and drops `yab_mcp*` from `sys.modules` before enabling. It also removes the pre-2.1 add-on `blendermcp` (keeping its port, token and auto start) and an old `blender-mcp` skill folder, but only after checking they are ours. `preferences.addon_remove` needs a UI area and fails in background mode, so `--uninstall` deletes the folder itself.
 
 ---
 

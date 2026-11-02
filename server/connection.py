@@ -15,12 +15,17 @@ DEFAULT_PORT = 9001
 DEFAULT_TIMEOUT = 180.0
 
 
+def env(name: str, default: str = "") -> str:
+    """Setting YAB_MCP_<name>; the pre-2.1 name BLENDER_MCP_<name> still works."""
+    return os.getenv(f"YAB_MCP_{name}", os.getenv(f"BLENDER_MCP_{name}", default))
+
+
 @dataclass
 class BlenderConnection:
-    host: str = field(default_factory=lambda: os.getenv("BLENDER_MCP_HOST", DEFAULT_HOST))
-    port: int = field(default_factory=lambda: int(os.getenv("BLENDER_MCP_PORT", str(DEFAULT_PORT))))
-    timeout: float = field(default_factory=lambda: float(os.getenv("BLENDER_MCP_TIMEOUT", str(DEFAULT_TIMEOUT))))
-    token: str = field(default_factory=lambda: os.getenv("BLENDER_MCP_TOKEN", ""))
+    host: str = field(default_factory=lambda: env("HOST", DEFAULT_HOST))
+    port: int = field(default_factory=lambda: int(env("PORT", str(DEFAULT_PORT))))
+    timeout: float = field(default_factory=lambda: float(env("TIMEOUT", str(DEFAULT_TIMEOUT))))
+    token: str = field(default_factory=lambda: env("TOKEN"))
     _sock: socket.socket | None = field(default=None, repr=False)
     _buffer: bytes = field(default=b"", repr=False)
     _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
@@ -63,7 +68,7 @@ class BlenderConnection:
             if not self.connect():
                 raise ToolError(
                     "Not connected to Blender. Make sure Blender is running "
-                    "and the BlenderMCP addon server is started."
+                    "and the YABlenderMCP add-on server is started."
                 )
             command: dict[str, Any] = {"type": command_type, "params": params or {}}
             if timeout:
@@ -130,8 +135,8 @@ def get_connection() -> BlenderConnection:
         _connection = None
         raise ToolError(
             "Could not connect to Blender. Make sure Blender is running "
-            "and the BlenderMCP addon server is started on port "
-            f"{os.getenv('BLENDER_MCP_PORT', str(DEFAULT_PORT))}."
+            "and the YABlenderMCP add-on server is started on port "
+            f"{env('PORT', str(DEFAULT_PORT))}."
         )
     return _connection
 

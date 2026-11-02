@@ -9,7 +9,7 @@ def test_blender_connection(host="127.0.0.1", port=9001):
         sock.connect((host, port))
         print(f"Connected to Blender at {host}:{port}")
 
-        command = {"type": "execute_code", "params": {"code": "print('BlenderMCP test OK')"}}
+        command = {"type": "execute_code", "params": {"code": "print('YABlenderMCP test OK')"}}
         sock.sendall(json.dumps(command).encode("utf-8"))
 
         chunks = []

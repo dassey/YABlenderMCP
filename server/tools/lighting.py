@@ -51,7 +51,7 @@ def register(mcp: FastMCP):
     def create_light_rig(preset: str = "three_point", objects: Optional[list[str]] = None,
                          intensity: float = 1.0) -> str:
         """Add a lighting setup sized to the objects: three_point, studio, rim, or outdoor (sun + sky).
-        Lights go in the "MCP Lights" collection."""
+        Lights go in the "YABlenderMCP Lights" collection."""
         return send("create_light_rig", params_of(preset=preset, objects=objects, intensity=intensity))
 
     @mcp.tool(annotations=EDIT)

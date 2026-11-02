@@ -1,7 +1,7 @@
-"""Build addon.zip for Blender's Add-ons > Install from Disk.
+"""Build yab-mcp-addon.zip for Blender's Add-ons > Install from Disk.
 
 Blender rejects zips with __init__.py at the top level, so the files are
-packed under a blendermcp/ folder.
+packed under a yab_mcp/ folder.
 """
 
 import os
@@ -9,7 +9,7 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(ROOT, "addon")
-ZIP = os.path.join(ROOT, "addon.zip")
+ZIP = os.path.join(ROOT, "yab-mcp-addon.zip")
 
 
 def build(zip_path: str = ZIP) -> str:
@@ -20,7 +20,7 @@ def build(zip_path: str = ZIP) -> str:
                 if name.endswith((".pyc", ".pyo")):
                     continue
                 full = os.path.join(dirpath, name)
-                zf.write(full, os.path.join("blendermcp", os.path.relpath(full, SRC)))
+                zf.write(full, os.path.join("yab_mcp", os.path.relpath(full, SRC)))
     return zip_path
 
 

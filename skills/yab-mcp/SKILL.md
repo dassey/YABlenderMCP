@@ -1,16 +1,16 @@
 ---
-name: blender-mcp
+name: yab-mcp
 description: Playbook for driving Blender 5.1 through the YABlenderMCP tools - modeling, materials, lighting, animation, rendering, 3D-print preparation for Bambu Lab printers, and turning 2D drawings into 3D models. Use whenever a task touches Blender or these tools. Covers what is available, which tool to use for what, how to check results, units, undo, and what the errors mean.
 ---
 
 # Working in Blender with YABlenderMCP
 
-The tools talk to a live Blender on the user's computer. Tool names below are the MCP names; your client may show them with a prefix (for example `blender` + the name).
+The tools talk to a live Blender on the user's computer. Tool names below are the MCP names; your client may show them with a prefix (for example `yab-mcp` + the name).
 
 ## Start of every task
 
 1. `get_blender_info`: version, open file, `unsaved_changes`, units (`mm_per_blender_unit`), engine, GPU and Cycles devices, `background_mode`.
-   - "Could not connect to Blender": Blender is closed or its server is off. Ask the user to open Blender (the BlenderMCP tab, N panel, has Start Server). Don't retry in a loop.
+   - "Could not connect to Blender": Blender is closed or its server is off. Ask the user to open Blender (the YABlenderMCP tab, N panel, has Start Server). Don't retry in a loop.
    - `background_mode: true`: headless. There are no viewport images and no undo; use `render_frame` or `compare_silhouette` to see results.
 2. `get_scene_info`: what exists. In big scenes, filter with `query` / `types` and page with `limit` / `offset`. Add `fields` (`ground`, `materials`, `modifiers`, ...) only when needed.
 3. `capture_views` once, so you know what the scene looks like before you change it.
@@ -99,7 +99,7 @@ Build joints, pins and sockets with `create_sdf_part`. The result is always clos
 | Unknown command | The add-on in Blender is older than the server. The user must run `install.py` again and restart Blender. |
 | Viewport images need Blender's UI | Headless mode. Use `render_frame` or `compare_silhouette`. |
 | Invalid parameters for ... | The message lists the expected parameters. |
-| A tool you expect is missing | `BLENDER_MCP_TOOLSETS` limits the tool groups; `execute_blender_code` is always there. |
+| A tool you expect is missing | `YAB_MCP_TOOLSETS` limits the tool groups; `execute_blender_code` is always there. |
 
 ## Safety
 
