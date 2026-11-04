@@ -6,7 +6,7 @@ Guide for AI agents working on or with this project.
 
 ## Names
 
-- **YABlenderMCP**: the long name, for anything people read (README, add-on name, N-panel tab, log lines, messages). Lowercase it is the MCP Registry name `io.github.dassey/yablendermcp`: the registry search only matches names, so the name must contain "blender" (2.3.0 was listed as `io.github.dassey/yab-mcp`, now deprecated).
+- **YABlenderMCP**: the long name, for anything people read (README, add-on name, N-panel tab, log lines, messages). Lowercase it is the MCP Registry name `io.github.dassey/yablendermcp`: the registry search only matches names, so the name must contain "blender" (2.3.0 was listed as `io.github.dassey/yab-mcp`).
 - **yab-mcp**: the short name: MCP server name, `yab-mcp` command, PyPI package, client config key, skill (`yab_mcp/skills/yab-mcp`), `yab-mcp://guide`, zip.
 - **yab_mcp** only where hyphens are not allowed: the Python package, add-on module/folder, operator ids (`yab_mcp.*`), classes (`YAB_MCP_*`), `blender -c yab_mcp`. Env vars are `YAB_MCP_*`.
 - Never generic names like blender-mcp / BlenderMCP. The add-on was called `blendermcp` before 2.1; `yab-mcp install` replaces it.
@@ -66,7 +66,7 @@ server/main.py        - shim for client configs from before 2.3 (python .../serv
 pyproject.toml        - package metadata (setuptools); version comes from yab_mcp/__init__.py
 server.json           - MCP Registry metadata (io.github.dassey/yablendermcp)
 .github/workflows/publish.yml - on tag v*: version check, build, PyPI (trusted publishing), MCP Registry (OIDC)
-.github/workflows/registry-status.yml - run by hand: change a registry listing's status (deprecate a version)
+.github/workflows/registry-status.yml - run by hand: hide (deleted), restore (active) or deprecate registry listings
 tests/test_connection.py - Standalone smoke test (direct TCP, no pytest; sends YAB_MCP_TOKEN)
 install_addon.bat     - Windows dev sync: copies yab_mcp/addon into the installed add-on, or builds the zip
 logo.jpg, LICENSE (MIT), README.md (user docs: every feature and how to use it)
@@ -185,7 +185,7 @@ blender -b scene.blend -c yab_mcp --port 9001
 **Release** (only when the user says so):
 1. Bump the version in `yab_mcp/__init__.py`, `bl_info` in `yab_mcp/addon/__init__.py`, and both versions in `server.json`.
 2. Commit to master, then tag `vX.Y.Z` and push the tag. `.github/workflows/publish.yml` checks the versions match the tag, builds, publishes to PyPI (trusted publisher, environment `pypi`) and then to the MCP Registry. A version can only be published once on PyPI.
-3. A broken release: Actions > Registry status > Run workflow deprecates it in the registry (yank it on pypi.org too). `mcp-publisher status --all-versions` asks for confirmation, so CI must pass `--yes`.
+3. To pull a release: Actions > Registry status > Run workflow (deleted hides it, active restores it), and delete or yank it on pypi.org. `mcp-publisher status --all-versions` asks for confirmation, so CI passes `--yes`.
 
 ---
 

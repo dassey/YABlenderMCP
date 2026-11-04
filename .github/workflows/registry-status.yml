@@ -1,25 +1,27 @@
 name: Registry status
 
-# Run by hand (Actions > Registry status > Run workflow) to change a listing's status in the MCP Registry,
-# for example to deprecate a broken version. Signs in with GitHub OIDC like publish.yml: no stored tokens.
-# The defaults mark the pre-2.3.1 name as replaced, so running it unchanged is harmless.
+# Run by hand (Actions > Registry status > Run workflow) to change listings in the MCP Registry:
+# deleted hides a listing, active brings it back, deprecated marks it as replaced.
+# Signs in with GitHub OIDC like publish.yml: no stored tokens.
 on:
   workflow_dispatch:
     inputs:
-      name:
-        description: "Registry name"
-        default: "io.github.dassey/yab-mcp"
-      version:
-        description: "Version, or all"
-        default: "all"
+      listing:
+        description: "Listing"
+        type: choice
+        options: [both, io.github.dassey/yablendermcp, io.github.dassey/yab-mcp]
+        default: both
       status:
         description: "New status"
         type: choice
-        options: [deprecated, active, deleted]
-        default: deprecated
+        options: [deleted, active, deprecated]
+        default: deleted
+      version:
+        description: "Version, or all"
+        default: "all"
       message:
         description: "Message shown with the status (optional)"
-        default: "Renamed to io.github.dassey/yablendermcp"
+        default: ""
 
 jobs:
   status:
@@ -29,15 +31,25 @@ jobs:
     steps:
       - name: Change the status
         env:
-          NAME: ${{ inputs.name }}
+          LISTING: ${{ inputs.listing }}
           VERSION: ${{ inputs.version }}
           STATUS: ${{ inputs.status }}
           MESSAGE: ${{ inputs.message }}
         run: |
           curl -sSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
           ./mcp-publisher login github-oidc
-          if [ "$VERSION" = all ]; then
-            ./mcp-publisher status --status "$STATUS" --message "$MESSAGE" --all-versions --yes "$NAME"
-          else
-            ./mcp-publisher status --status "$STATUS" --message "$MESSAGE" "$NAME" "$VERSION"
-          fi
+          names="$LISTING"
+          [ "$LISTING" = both ] && names="io.github.dassey/yablendermcp io.github.dassey/yab-mcp"
+          failed=0
+          for name in $names; do
+            if [ "$VERSION" = all ]; then
+              out=$(./mcp-publisher status --status "$STATUS" --message "$MESSAGE" --all-versions --yes "$name" 2>&1) || rc=$?
+            else
+              out=$(./mcp-publisher status --status "$STATUS" --message "$MESSAGE" "$name" "$VERSION" 2>&1) || rc=$?
+            fi
+            echo "$out"
+            # Running it twice is fine: the registry answers "No changes to apply"
+            if [ "${rc:-0}" != 0 ] && ! grep -q "No changes to apply" <<<"$out"; then failed=1; fi
+            rc=0
+          done
+          exit $failed
