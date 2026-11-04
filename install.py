@@ -1,7 +1,7 @@
 """One-step install of YABlenderMCP (close Blender first).
 
-    python install.py [--blender PATH] [--port 9001] [--no-autostart] [--skip-verify] [--force]
-                      [--skill-dir DIR]
+    python install.py [--blender PATH] [--port 9001] [--no-autostart] [--no-code] [--skip-verify]
+                      [--force] [--skill-dir DIR]
     python install.py --uninstall [--blender PATH] [--skill-dir DIR]
 
 Installs the mcp package for this Python if needed, builds yab-mcp-addon.zip, installs and enables
@@ -29,13 +29,13 @@ MIN_BLENDER = (5, 1)
 MIN_MCP = (1, 30)
 
 # Runs inside Blender in background mode. Arguments after "--": action, zip path, port ("" = keep),
-# auto start ("0" = off, "" = keep / on).
+# auto start and allow code ("0" = off, "" = keep / on).
 _IN_BLENDER = r'''
 import json, os, shutil, sys
 import addon_utils, bpy
 
 NAME, OLD_NAME = "yab_mcp", "blendermcp"  # the add-on was called blendermcp before 2.1
-action, zip_path, port, auto_start = sys.argv[sys.argv.index("--") + 1:][:4]
+action, zip_path, port, auto_start, allow_code = sys.argv[sys.argv.index("--") + 1:][:5]
 addons = bpy.context.preferences.addons
 out = {"blender": bpy.app.version_string}
 
@@ -56,10 +56,13 @@ def remove(module):
 
 
 if action == "install":
-    old = addons.get(OLD_NAME)
-    keep = {}
-    if old is not None and old.preferences is not None:
-        keep = {k: getattr(old.preferences, k) for k in ("port", "token", "auto_start") if hasattr(old.preferences, k)}
+    keep = {}  # disabling an add-on resets its preferences, so carry the current ones over
+    for module in (NAME, OLD_NAME):
+        entry = addons.get(module)
+        if entry is not None and entry.preferences is not None:
+            keep = {k: getattr(entry.preferences, k) for k in ("port", "token", "auto_start", "allow_code")
+                    if hasattr(entry.preferences, k)}
+            break
     out["migrated_from"] = OLD_NAME if remove(OLD_NAME) else None
     others = []
     for mod in addon_utils.modules():
@@ -77,11 +80,12 @@ if action == "install":
     prefs = addons[NAME].preferences
     prefs.port = int(port) if port else keep.get("port", prefs.port)
     prefs.auto_start = False if auto_start == "0" else keep.get("auto_start", True)
+    prefs.allow_code = False if allow_code == "0" else keep.get("allow_code", True)
     if keep.get("token"):
         prefs.token = keep["token"]
     import yab_mcp
     out.update(installed_to=os.path.dirname(yab_mcp.__file__), port=prefs.port, auto_start=prefs.auto_start,
-               token_set=bool(prefs.token))
+               allow_code=prefs.allow_code, token_set=bool(prefs.token))
 else:
     out["removed"] = [m for m in (NAME, OLD_NAME) if remove(m)]
 bpy.ops.wm.save_userpref()
@@ -180,13 +184,14 @@ def blender_running():
         return False
 
 
-def run_in_blender(blender, action, zip_path="", port=None, auto_start=None):
+def run_in_blender(blender, action, zip_path="", port=None, auto_start=None, allow_code=None):
     with tempfile.TemporaryDirectory() as tmp:
         script = os.path.join(tmp, "yab_mcp_setup.py")
         with open(script, "w", encoding="utf-8") as f:
             f.write(_IN_BLENDER)
         cmd = [blender, "-b", "--python-exit-code", "1", "--python", script,
-               "--", action, zip_path, str(port or ""), "0" if auto_start is False else ""]
+               "--", action, zip_path, str(port or ""), "0" if auto_start is False else "",
+               "0" if allow_code is False else ""]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, encoding="utf-8", errors="replace")
     for line in result.stdout.splitlines():
         if line.startswith("YAB_MCP_RESULT "):
@@ -263,6 +268,8 @@ def main():
     parser.add_argument("--blender", help="path to the Blender executable (default: search the usual places)")
     parser.add_argument("--port", type=int, help="add-on port (default: keep the current one, else 9001)")
     parser.add_argument("--no-autostart", action="store_true", help="don't start the server when Blender opens")
+    parser.add_argument("--no-code", action="store_true",
+                        help="block execute_blender_code (only the structured tools work)")
     parser.add_argument("--skip-verify", action="store_true", help="skip the headless self-test")
     parser.add_argument("--force", action="store_true", help="install even if Blender seems to be running")
     parser.add_argument("--uninstall", action="store_true", help="disable and remove the add-on")
@@ -289,11 +296,13 @@ def main():
     from build_addon import build
     zip_path = build()
     print(f"Built {zip_path}")
-    result = run_in_blender(blender, "install", zip_path, args.port, False if args.no_autostart else None)
+    result = run_in_blender(blender, "install", zip_path, args.port, False if args.no_autostart else None,
+                            False if args.no_code else None)
     print(f"Add-on installed and enabled: {result['installed_to']}")
     if result.get("migrated_from"):
         print(f"  Replaced the old add-on '{result['migrated_from']}' (settings kept)")
-    print(f"  port {result['port']}, start server when Blender opens: {'on' if result['auto_start'] else 'off'}"
+    print(f"  port {result['port']}, start server when Blender opens: {'on' if result['auto_start'] else 'off'}, "
+          f"Python code: {'allowed' if result['allow_code'] else 'blocked'}"
           + (", token set" if result["token_set"] else ""))
     if result.get("other_mcp_addons"):
         print(f"  Warning: other MCP add-ons are enabled: {', '.join(result['other_mcp_addons'])}. "

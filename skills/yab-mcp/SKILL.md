@@ -11,6 +11,7 @@ The tools talk to a live Blender on the user's computer. Tool names below are th
 
 1. `get_blender_info`: version, open file, `unsaved_changes`, units (`mm_per_blender_unit`), engine, GPU and Cycles devices, `background_mode`.
    - "Could not connect to Blender": Blender is closed or its server is off. Ask the user to open Blender (the YABlenderMCP tab, N panel, has Start Server). Don't retry in a loop.
+   - `python_code_allowed: false`: the user turned Python off. Use only the structured tools; don't try to work around it.
    - `background_mode: true`: headless. There are no viewport images and no undo; use `render_frame` or `compare_silhouette` to see results.
 2. `get_scene_info`: what exists. In big scenes, filter with `query` / `types` and page with `limit` / `offset`. Add `fields` (`ground`, `materials`, `modifiers`, ...) only when needed.
 3. `capture_views` once, so you know what the scene looks like before you change it.
@@ -98,6 +99,7 @@ Build joints, pins and sockets with `create_sdf_part`. The result is always clos
 | ... not found. Did you mean ... | Use the suggested name. |
 | Unknown command | The add-on in Blender is older than the server. The user must run `install.py` again and restart Blender. |
 | Viewport images need Blender's UI | Headless mode. Use `render_frame` or `compare_silhouette`. |
+| Python code is turned off | The user turned off Allow Python code. Use the structured tools; if code is really needed, ask the user. |
 | Invalid parameters for ... | The message lists the expected parameters. |
 | A tool you expect is missing | `YAB_MCP_TOOLSETS` limits the tool groups; `execute_blender_code` is always there. |
 

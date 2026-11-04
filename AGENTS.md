@@ -63,7 +63,7 @@ server/
     analysis.py     - 6: distance, ray hit, pick, snapshot/diff, silhouette compare
 
 addon/
-  __init__.py       - bl_info (version 2.1.0), register/unregister delegate to server module
+  __init__.py       - bl_info (version 2.2.0), register/unregister delegate to server module
   server.py         - YABlenderMCPServer (TCP), job queue, undo wrapper operator, prefs, UI panel,
                       headless CLI command (-c yab_mcp)
   handlers/
@@ -119,6 +119,7 @@ or
 - `_dispatch` checks, in order: known command, render running (non-read-only commands are refused), parameters bind to the handler signature, then runs it.
 - **Undo:** commands run inside the internal operator `yab_mcp.run_command` (`bl_options={"UNDO","INTERNAL"}`), called with `("EXEC_DEFAULT", True)` so exactly one undo step is pushed per command. Read-only commands (name starts with `get_`, `list_`, `find_`, `measure_`, `check_`, `analyze_`, `search_`, `capture_`, `compare_`, `snapshot_`, `diff_`, `ping`) and `_UNWRAPPED` ones (file load/save, undo/redo, renders, view changes) skip the wrapper.
 - Errors reach the client as `ToolError`, so mcp 2.x shows the real message.
+- **Python code switch:** `code_allowed()` in `addon/server.py` (preference `allow_code`, or `--no-code` headless). It is checked inside the `execute_code` handler, so `execute_batch` can't bypass it, and in `set_properties` for `expression` / `use_module`. `get_api_docs` only resolves modules that are already loaded (importing runs code).
 
 ---
 
@@ -249,6 +250,9 @@ The client must be restarted to pick up config changes. Optional env: `YAB_MCP_P
 14. **Offscreen capture**: read `GPUOffScreen` pixels as FLOAT and convert; UBYTE readback through numpy came back garbled.
 
 15. **Upgrading the add-on from a script**: `addon_enable` does nothing when the add-on is already enabled, so the old code stays loaded (v1 had no preferences class). `install.py` disables it and drops `yab_mcp*` from `sys.modules` before enabling. It also removes the pre-2.1 add-on `blendermcp` (keeping its port, token and auto start) and an old `blender-mcp` skill folder, but only after checking they are ours. `preferences.addon_remove` needs a UI area and fails in background mode, so `--uninstall` deletes the folder itself.
+
+
+16. **Disabling an add-on resets its preferences.** `install.py` reads port, token, auto start and allow_code before it disables the old copy and writes them back after enabling the new one (the 2.1.0 installer lost them).
 
 ---
 

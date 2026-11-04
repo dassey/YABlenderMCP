@@ -12,11 +12,20 @@ from .code import to_jsonable
 _NOT_IN_BATCH = {"open_blend", "undo", "redo", "execute_batch"}
 
 
+# Properties whose text Blender runs as Python (driver expressions, text blocks run on load).
+_PYTHON_PROPS = {"expression", "use_module"}
+
+
+def _code_allowed() -> bool:
+    from ..server import code_allowed
+    return code_allowed()
+
+
 def ping() -> dict:
     from .. import bl_info
-    from ..server import PROTOCOL_VERSION
+    from ..server import PROTOCOL_VERSION, code_allowed
     return {"pong": True, "blender": bpy.app.version_string, "addon_version": list(bl_info["version"]),
-            "protocol": PROTOCOL_VERSION}
+            "protocol": PROTOCOL_VERSION, "code_allowed": code_allowed()}
 
 
 def get_blender_info() -> dict:
@@ -51,6 +60,7 @@ def get_blender_info() -> dict:
             "collections": len(bpy.data.collections),
         },
         "background_mode": bpy.app.background,
+        "python_code_allowed": _code_allowed(),
     }
     try:
         import gpu
@@ -288,10 +298,13 @@ def get_api_docs(path: str) -> dict:
                 for f in rna.functions
             ],
         }
-    # Plain Python modules (bmesh.ops.*, mathutils.*, gpu.*, bpy.utils.* ...)
-    import importlib
+    # Plain Python modules (bmesh.ops.*, mathutils.*, gpu.*, bpy.utils.* ...). Only modules that are
+    # already loaded: importing one would run its code.
     parts = path.split(".")
-    obj = importlib.import_module(parts[0])
+    obj = sys.modules.get(parts[0])
+    if obj is None:
+        raise ValueError(f"'{parts[0]}' is not a loaded module. Look up bpy, bmesh, mathutils, gpu, bpy_extras "
+                         "or another module Blender has loaded")
     for part in parts[1:]:
         obj = getattr(obj, part)
     doc = {"path": path, "doc": (obj.__doc__ or "").strip()[:4000]}
@@ -378,6 +391,8 @@ def set_properties(target: str, properties: dict) -> dict:
     for path, value in properties.items():
         try:
             owner_path, attr, index = _split_path(path)
+            if attr in _PYTHON_PROPS and not _code_allowed():
+                raise PermissionError("Python code is turned off, so driver expressions and text modules can't be set")
             owner = root.path_resolve(owner_path) if owner_path else root
             if index is not None:
                 getattr(owner, attr)[index] = value

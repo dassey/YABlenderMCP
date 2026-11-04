@@ -93,6 +93,10 @@ def execute_code(code: str, timeout: float = 170.0, view3d: bool = True) -> dict
     Assign a variable named `result` to get structured data back. Runaway code is
     interrupted after `timeout` seconds (a single long C call such as a render cannot be).
     """
+    from ..server import code_allowed  # checked here so execute_batch can't bypass it
+    if not code_allowed():
+        raise PermissionError("Python code is turned off (YABlenderMCP add-on preferences: Allow Python code). "
+                              "Use the structured tools, or ask the user to turn it on.")
     try:
         code_obj, source, fixed_indent = _compile(code)
     except SyntaxError:

@@ -35,10 +35,11 @@ class YABlenderMCPServer:
     """Socket threads only parse and queue commands; everything touching bpy runs on
     Blender's main thread when the queue is drained (bpy.app.timers is not thread-safe)."""
 
-    def __init__(self, host="127.0.0.1", port=DEFAULT_PORT, token=""):
+    def __init__(self, host="127.0.0.1", port=DEFAULT_PORT, token="", allow_code=None):
         self.host = host
         self.port = port
         self.token = token
+        self.allow_code = allow_code  # None: follow the "Allow Python code" preference
         self.running = False
         self.socket = None
         self.server_thread = None
@@ -305,16 +306,17 @@ def _drain():
     return 0.01 if ran else 0.05
 
 
-def start_server(port=None, token=None):
+def start_server(port=None, token=None, allow_code=None):
     """Start (or restart on a new port) the TCP server. Call on the main thread."""
     global _server
     prefs = _prefs()
     port = port or (prefs.port if prefs else DEFAULT_PORT)
     token = token if token is not None else (prefs.token if prefs else "")
-    if _server and _server.running and _server.port == port and _server.token == token:
+    if (_server and _server.running and _server.port == port and _server.token == token
+            and _server.allow_code == allow_code):
         return _server
     stop_server()
-    _server = YABlenderMCPServer(port=port, token=token)
+    _server = YABlenderMCPServer(port=port, token=token, allow_code=allow_code)
     if _server.start() and not bpy.app.background and not bpy.app.timers.is_registered(_drain):
         bpy.app.timers.register(_drain, first_interval=0.05, persistent=True)
     return _server
@@ -335,11 +337,14 @@ def _cli_serve(argv):
     parser = argparse.ArgumentParser(prog="blender -b -c yab_mcp")
     parser.add_argument("--port", type=int, default=None, help="default: the add-on's Port preference")
     parser.add_argument("--token", default=None, help="default: the add-on's Token preference")
+    parser.add_argument("--no-code", action="store_true",
+                        help="block execute_blender_code (default: the add-on's Allow Python code preference)")
     args = parser.parse_args(argv)
-    srv = start_server(args.port, args.token)
+    srv = start_server(args.port, args.token, False if args.no_code else None)
     if not srv.running:
         return 1
-    print(f"[YABlenderMCP] Headless server ready on 127.0.0.1:{srv.port} (Ctrl+C to stop)", flush=True)
+    print(f"[YABlenderMCP] Headless server ready on 127.0.0.1:{srv.port}, Python code "
+          f"{'allowed' if code_allowed() else 'blocked'} (Ctrl+C to stop)", flush=True)
     try:
         while srv.running:
             if not srv.process_jobs(budget=0.5):
@@ -353,6 +358,14 @@ def _cli_serve(argv):
 def _prefs():
     addon = bpy.context.preferences.addons.get(__package__)
     return addon.preferences if addon else None
+
+
+def code_allowed() -> bool:
+    """May MCP clients run arbitrary Python? The headless --no-code flag, else the preference."""
+    if _server is not None and _server.allow_code is not None:
+        return _server.allow_code
+    prefs = _prefs()
+    return True if prefs is None else bool(prefs.allow_code)
 
 
 class YAB_MCP_Preferences(bpy.types.AddonPreferences):
@@ -370,12 +383,19 @@ class YAB_MCP_Preferences(bpy.types.AddonPreferences):
         default="",
         subtype="PASSWORD",
     )
+    allow_code: BoolProperty(
+        name="Allow Python code",
+        description="Let MCP clients run any Python inside Blender (execute_blender_code). "
+                    "Off: only the structured tools work",
+        default=True,
+    )
 
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "port")
         layout.prop(self, "auto_start")
         layout.prop(self, "token")
+        layout.prop(self, "allow_code")
 
 
 class YAB_MCP_PT_Panel(bpy.types.Panel):
@@ -391,6 +411,7 @@ class YAB_MCP_PT_Panel(bpy.types.Panel):
         if prefs:
             layout.prop(prefs, "port")
             layout.prop(prefs, "auto_start")
+            layout.prop(prefs, "allow_code")
         srv = get_server()
         if srv is None or not srv.running:
             layout.operator("yab_mcp.start_server", text="Start Server")

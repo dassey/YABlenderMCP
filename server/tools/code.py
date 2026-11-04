@@ -16,7 +16,9 @@ def register(mcp: FastMCP):
         Assign a variable named `result` to get structured data back as JSON.
         Runaway code is stopped after `timeout` seconds. 3D-viewport operators work
         (the code runs with a viewport context). The whole run is one Ctrl+Z step.
-        Use this for any operation that doesn't have a dedicated tool.
+        Use this for any operation that doesn't have a dedicated tool. The user can turn it
+        off (add-on preference "Allow Python code"); then it returns an error and only the
+        structured tools work.
         """
         conn = get_connection()
         result = conn.send_command("execute_code", {"code": code, "timeout": timeout},

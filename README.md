@@ -64,6 +64,7 @@ Then add the printed entry to your MCP client's config, restart the client and o
 | `--port N` | Use another port than 9001; the printed entry includes it. |
 | `--no-autostart` | Don't start the server when Blender opens; use the Start Server button instead. |
 | `--skip-verify` | Skip the headless self-test. |
+| `--no-code` | Block `execute_blender_code`; only the structured tools work (see [Security](#security)). |
 | `--force` | Install even if Blender seems to be running. |
 | `--skill-dir DIR` | Also copy the `yab-mcp` skill into this skills folder (for clients that support Agent Skills). |
 | `--uninstall` | Disable and remove the add-on (and the skill, with `--skill-dir`). |
@@ -143,7 +144,7 @@ Environment variables for the MCP server (set them in the client config's `env`)
 The names used before 2.1 (`BLENDER_MCP_*`) still work.
 | `PYTHONUTF8` | | Set to `1` on Windows |
 
-Add-on preferences (Edit > Preferences > Add-ons > YABlenderMCP): **Port**, **Start server when Blender opens**, **Token**.
+Add-on preferences (Edit > Preferences > Add-ons > YABlenderMCP): **Port**, **Start server when Blender opens**, **Token**, **Allow Python code**. Reinstalling keeps them.
 
 **Fewer tools.** Some clients work better with fewer tools. List the groups you want; `execute_blender_code` is always included:
 
@@ -166,17 +167,30 @@ blender -b path/to/scene.blend -c yab_mcp
 blender -b -c yab_mcp --port 9002 --token pick-a-secret
 ```
 
-Port and token default to the add-on preferences. Ctrl+C stops it. Headless mode has no viewport tools (`get_viewport_screenshot`, `capture_views`, `find_object_at`, `set_view`, shading) and no undo; modeling, print, file and render tools and `compare_silhouette` work.
+Port, token and Allow Python code follow the add-on preferences; `--no-code` blocks Python for this run. Ctrl+C stops it. Headless mode has no viewport tools (`get_viewport_screenshot`, `capture_views`, `find_object_at`, `set_view`, shading) and no undo; modeling, print, file and render tools and `compare_silhouette` work.
 
-## Safety
+## Security
+
+What an AI client can do with these tools:
+
+- **Run any Python inside Blender** (`execute_blender_code`) as your user account, which includes reading, writing and deleting files and using the network. Turn it off with **Allow Python code** in the add-on preferences or the N panel, `install.py --no-code`, or `blender -b -c yab_mcp --no-code`. When it is off, the add-on refuses Python everywhere (also inside `execute_batch`, driver expressions and text modules) and only the structured tools work. An AI can turn it off but not back on.
+- **Read and write files** wherever Blender can: open, save and append .blend files, import, export, render output, list folders.
+- **Change or delete anything in the open scene.** Each call is one undo step.
+
+Protections:
 
 - The add-on listens on 127.0.0.1 only. The optional token is checked on every command.
-- A connection that sends anything other than JSON (for example a web page probing the port) is dropped.
-- The MCP server process blocks network connections to anything except this computer and `YAB_MCP_HOST`. Python run inside Blender (`execute_blender_code`) is not limited this way.
-- `open_blend` loads files with embedded scripts disabled.
-- Undo: each scene-changing call, including `execute_blender_code` and `execute_batch`, is exactly one undo step. `undo` / `redo` step back and forward. `save_checkpoint` saves a copy of the scene before risky work.
-- Scene-changing calls are refused while a render is running.
-- The server tells the model that text inside object names, files and logs is data, not instructions.
+- A connection that sends anything other than JSON (for example a web page probing the port) is dropped before anything runs.
+- The MCP server process blocks network connections to anything except this computer and `YAB_MCP_HOST`. Python run inside Blender is not limited this way.
+- `open_blend` loads files with embedded scripts disabled. `get_api_docs` only reads modules Blender has already loaded.
+- Scene-changing calls are refused while a render is running; `save_checkpoint` saves a copy of the scene before risky work.
+- The server tells the model that text inside object names, files and logs is data, not instructions. That lowers the risk of prompt injection from untrusted files; it does not remove it.
+
+Recommendations:
+
+- Let your MCP client ask before `execute_blender_code`, `open_blend`, `save_blend`, `export_file`, `export_print` and `clear_scene` instead of auto-approving them.
+- Turn **Allow Python code** off when you work with .blend files, assets or images from people you don't trust.
+- Set a **Token** if other people or programs share your computer.
 
 ## Features and how to use them
 
