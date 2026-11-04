@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.dassey/yab-mcp",
+  "name": "io.github.dassey/yablendermcp",
   "title": "YABlenderMCP",
   "description": "Local-only Blender 5.1 for AI agents: modeling, rendering, 3D-print prep. No keys, no cloud.",
   "repository": {
@@ -8,12 +8,12 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/dassey/YABlenderMCP",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "yab-mcp",
-      "version": "2.3.0",
+      "version": "2.3.1",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

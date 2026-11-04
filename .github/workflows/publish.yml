@@ -50,7 +50,12 @@ jobs:
           curl -sSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
           ./mcp-publisher login github-oidc
           for attempt in 1 2 3 4 5; do  # PyPI needs a moment before the registry can see the new version
-            ./mcp-publisher publish && exit 0
+            if ./mcp-publisher publish; then
+              # 2.3.0 was listed as io.github.dassey/yab-mcp; point people to the new name (no-op once done)
+              ./mcp-publisher status --status deprecated --all-versions \
+                --message "Renamed to io.github.dassey/yablendermcp" io.github.dassey/yab-mcp || true
+              exit 0
+            fi
             sleep 30
           done
           exit 1

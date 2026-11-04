@@ -6,8 +6,8 @@ Guide for AI agents working on or with this project.
 
 ## Names
 
-- **YABlenderMCP**: the long name, for anything people read (README, add-on name, N-panel tab, log lines, messages).
-- **yab-mcp**: the short name: MCP server name, `yab-mcp` command, PyPI package, client config key, skill (`yab_mcp/skills/yab-mcp`), `yab-mcp://guide`, zip, registry name `io.github.dassey/yab-mcp`.
+- **YABlenderMCP**: the long name, for anything people read (README, add-on name, N-panel tab, log lines, messages). Lowercase it is the MCP Registry name `io.github.dassey/yablendermcp`: the registry search only matches names, so the name must contain "blender" (2.3.0 was listed as `io.github.dassey/yab-mcp`, now deprecated).
+- **yab-mcp**: the short name: MCP server name, `yab-mcp` command, PyPI package, client config key, skill (`yab_mcp/skills/yab-mcp`), `yab-mcp://guide`, zip.
 - **yab_mcp** only where hyphens are not allowed: the Python package, add-on module/folder, operator ids (`yab_mcp.*`), classes (`YAB_MCP_*`), `blender -c yab_mcp`. Env vars are `YAB_MCP_*`.
 - Never generic names like blender-mcp / BlenderMCP. The add-on was called `blendermcp` before 2.1; `yab-mcp install` replaces it.
 
@@ -54,7 +54,7 @@ yab_mcp/              - the Python package (PyPI: yab-mcp; command: yab-mcp; pyt
                         io_tools, animation, nodes, render, mesh, lighting, print3d, analysis)
   skills/yab-mcp/SKILL.md - the AI's playbook (Agent Skills format; also served over MCP)
   addon/              - the Blender add-on (never imported by the server)
-    __init__.py       - bl_info (version 2.3.0), register/unregister delegate to server module
+    __init__.py       - bl_info (version 2.3.1), register/unregister delegate to server module
     server.py         - YABlenderMCPServer (TCP), job queue, undo wrapper operator, prefs, UI panel,
                         code_allowed()/code_isolated(), headless CLI command (-c yab_mcp)
     handlers/         - one file per domain, matching yab_mcp/tools (io_handlers named so to avoid clashing);
@@ -64,7 +64,7 @@ yab_mcp/              - the Python package (PyPI: yab-mcp; command: yab-mcp; pyt
 install.py            - clone shim: pip install -e . into the running Python, then yab-mcp install
 server/main.py        - shim for client configs from before 2.3 (python .../server/main.py)
 pyproject.toml        - package metadata (setuptools); version comes from yab_mcp/__init__.py
-server.json           - MCP Registry metadata (io.github.dassey/yab-mcp)
+server.json           - MCP Registry metadata (io.github.dassey/yablendermcp)
 .github/workflows/publish.yml - on tag v*: version check, build, PyPI (trusted publishing), MCP Registry (OIDC)
 tests/test_connection.py - Standalone smoke test (direct TCP, no pytest; sends YAB_MCP_TOKEN)
 install_addon.bat     - Windows dev sync: copies yab_mcp/addon into the installed add-on, or builds the zip
@@ -164,7 +164,7 @@ Most new functionality does NOT need a new structured tool. If a user asks for s
 ```bash
 YAB_MCP_TOKEN=<token> python -m yab_mcp --check
 ```
-Prints `MCP server OK: 106 tools (yab-mcp 2.3.0)`, the add-on version and whether Python code is allowed, or why the add-on is not reachable. `python server/main.py --check` (old path) still works.
+Prints `MCP server OK: 106 tools (yab-mcp 2.3.1)`, the add-on version and whether Python code is allowed, or why the add-on is not reachable. `python server/main.py --check` (old path) still works.
 
 **Smoke test** (direct TCP, reads `YAB_MCP_TOKEN`):
 ```bash

@@ -1,6 +1,6 @@
 # <img src="https://raw.githubusercontent.com/dassey/YABlenderMCP/master/logo.jpg" width="48" align="center"> YABlenderMCP
 
-<!-- mcp-name: io.github.dassey/yab-mcp -->
+<!-- mcp-name: io.github.dassey/yablendermcp -->
 
 YABlenderMCP (short name `yab-mcp`) is an MCP server that lets an AI agent work in Blender 5.1 on your computer: modeling, materials, lighting, animation, rendering and 3D-print preparation.
 
