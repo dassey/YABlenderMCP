@@ -1,0 +1,42 @@
+name: Registry status
+
+# Run by hand (Actions > Registry status > Run workflow) to change a listing's status in the MCP Registry,
+# for example to deprecate a broken version. Signs in with GitHub OIDC like publish.yml: no stored tokens.
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Registry name"
+        default: "io.github.dassey/yablendermcp"
+      version:
+        description: "Version, or all"
+        default: "all"
+      status:
+        description: "New status"
+        type: choice
+        options: [deprecated, active, deleted]
+        default: deprecated
+      message:
+        description: "Message shown with the status (optional)"
+        default: ""
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # MCP Registry login
+    steps:
+      - name: Change the status
+        env:
+          NAME: ${{ inputs.name }}
+          VERSION: ${{ inputs.version }}
+          STATUS: ${{ inputs.status }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          curl -sSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          if [ "$VERSION" = all ]; then
+            ./mcp-publisher status --status "$STATUS" --message "$MESSAGE" --all-versions --yes "$NAME"
+          else
+            ./mcp-publisher status --status "$STATUS" --message "$MESSAGE" "$NAME" "$VERSION"
+          fi
