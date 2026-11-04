@@ -4,6 +4,7 @@ import bpy
 import hmac
 import inspect
 import json
+import os
 import queue
 import socket
 import sys
@@ -336,11 +337,14 @@ def _cli_serve(argv):
     import argparse
     parser = argparse.ArgumentParser(prog="blender -b -c yab_mcp")
     parser.add_argument("--port", type=int, default=None, help="default: the add-on's Port preference")
-    parser.add_argument("--token", default=None, help="default: the add-on's Token preference")
+    parser.add_argument("--token", default=None,
+                        help="default: YAB_MCP_TOKEN, else the add-on's Token preference (the environment "
+                             "variable keeps it out of process lists)")
     parser.add_argument("--no-code", action="store_true",
                         help="block execute_blender_code (default: the add-on's Allow Python code preference)")
     args = parser.parse_args(argv)
-    srv = start_server(args.port, args.token, False if args.no_code else None)
+    token = args.token if args.token is not None else (os.environ.get("YAB_MCP_TOKEN") or None)
+    srv = start_server(args.port, token, False if args.no_code else None)
     if not srv.running:
         return 1
     print(f"[YABlenderMCP] Headless server ready on 127.0.0.1:{srv.port}, Python code "
@@ -368,6 +372,12 @@ def code_allowed() -> bool:
     return True if prefs is None else bool(prefs.allow_code)
 
 
+def code_isolated() -> bool:
+    """Block internet, programs, threads and native libraries while AI-sent Python runs?"""
+    prefs = _prefs()
+    return True if prefs is None else bool(prefs.isolate_code)
+
+
 class YAB_MCP_Preferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
@@ -389,6 +399,18 @@ class YAB_MCP_Preferences(bpy.types.AddonPreferences):
                     "Off: only the structured tools work",
         default=True,
     )
+    isolate_code: BoolProperty(
+        name="Block internet and programs in Python code",
+        description="While AI-sent Python runs, refuse internet connections and starting programs, threads "
+                    "or native libraries. Not a sandbox: Allow Python code off is the hard switch",
+        default=True,
+    )
+    allowed_folders: StringProperty(
+        name="Allowed folders",
+        description="Folders the file tools may read and write, separated by ; (empty: any folder). "
+                    "Python code is not limited by this",
+        default="",
+    )
 
     def draw(self, context):
         layout = self.layout
@@ -396,6 +418,8 @@ class YAB_MCP_Preferences(bpy.types.AddonPreferences):
         layout.prop(self, "auto_start")
         layout.prop(self, "token")
         layout.prop(self, "allow_code")
+        layout.prop(self, "isolate_code")
+        layout.prop(self, "allowed_folders")
 
 
 class YAB_MCP_PT_Panel(bpy.types.Panel):

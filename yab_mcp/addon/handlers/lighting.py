@@ -8,7 +8,7 @@ from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Vector
 
 from . import register_handler
-from .common import get_object, rounded, world_bbox
+from .common import get_object, rounded, world_bbox, check_path
 
 _GEOMETRY_TYPES = {"MESH", "CURVE", "SURFACE", "META", "FONT", "CURVES", "POINTCLOUD", "VOLUME", "GREASEPENCIL"}
 _DEFAULT_ENERGY = {"POINT": 1000.0, "SPOT": 1000.0, "AREA": 500.0, "SUN": 3.0}
@@ -245,6 +245,7 @@ def set_world(color=None, strength: float = 1.0, hdri_path: str = "", rotation_d
     """Set the world background to a colour, or to a local HDRI/EXR file."""
     scene = bpy.context.scene
     if hdri_path:
+        check_path(hdri_path)
         if not os.path.isfile(hdri_path):
             raise ValueError(f"File not found: {hdri_path}")
         world = bpy.data.worlds.new("HDRI World")

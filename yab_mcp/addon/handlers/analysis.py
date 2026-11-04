@@ -11,7 +11,7 @@ from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
 from . import register_handler
-from .common import LAST_VIEW, get_object, rounded, unit_scale_to_mm, world_bbox
+from .common import LAST_VIEW, get_object, rounded, unit_scale_to_mm, world_bbox, check_path
 
 _snapshots = {}
 
@@ -246,6 +246,7 @@ def compare_silhouette(objects: list, reference_image: str, view: str = "front",
     (position and scale ignored, aspect kept) and returns IoU (1.0 = identical) plus an overlay
     image: gray = both, blue = model only, red = reference only.
     """
+    check_path(reference_image)
     if not os.path.isfile(reference_image):
         raise ValueError(f"File not found: {reference_image}")
     objs = [get_object(n) for n in objects]

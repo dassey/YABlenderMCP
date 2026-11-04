@@ -3,7 +3,7 @@
 import bpy
 
 from . import register_handler
-from .common import get_object
+from .common import get_object, check_path
 
 _TREE_TYPES = ("ShaderNodeTree", "GeometryNodeTree", "CompositorNodeTree", "TextureNodeTree")
 _BASE_NODE_PROPS = {p.identifier for p in bpy.types.Node.bl_rna.properties}
@@ -200,7 +200,7 @@ def set_node_property(owner: str, node_name: str, property: str, value) -> dict:
         raise ValueError(f"'{property}' is not a property of {node.bl_idname}. Available: "
                          f"{', '.join(_node_props(node))}")
     if property == "image" and isinstance(value, str):
-        value = bpy.data.images.load(value, check_existing=True)
+        value = bpy.data.images.load(check_path(value), check_existing=True)
     setattr(node, property, value)
     return {"node": node.name, "property": property, "value": str(getattr(node, property)),
             "inputs": _socket_labels(node.inputs), "outputs": _socket_labels(node.outputs)}

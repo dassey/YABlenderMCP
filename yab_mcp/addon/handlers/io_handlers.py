@@ -13,7 +13,7 @@ import numpy as np
 from mathutils import Euler, Matrix, Vector
 
 from . import register_handler
-from .common import object_mode, rounded, select_only, unit_scale_to_mm, world_bbox
+from .common import object_mode, rounded, select_only, unit_scale_to_mm, world_bbox, check_path
 
 
 def _import_3mf(fp, **kw):
@@ -69,9 +69,15 @@ def _3mf_matrix(text):
     return Matrix(((m[0], m[3], m[6], m[9]), (m[1], m[4], m[7], m[10]), (m[2], m[5], m[8], m[11]), (0, 0, 0, 1)))
 
 
+_MAX_3MF_PART = 1 << 30
+
+
 def _read_3mf(filepath):
     """Import the geometry of a .3mf (core spec + production components, e.g. Bambu Studio projects)."""
     with zipfile.ZipFile(filepath) as zf:
+        too_big = [i.filename for i in zf.infolist() if i.file_size > _MAX_3MF_PART]
+        if too_big:
+            raise ValueError(f"{too_big[0]} in this 3MF unpacks to more than 1 GB; refusing to read it")
         names = set(zf.namelist())
         root_path = "3D/3dmodel.model"
         if "_rels/.rels" in names:
@@ -149,6 +155,7 @@ def _new_objects_after(fn):
 def import_file(filepath: str, options=None, target_size: float = 0.0, drop_to_ground: bool = False,
                 center: bool = False) -> dict:
     """Import a file into Blender, optionally scaling it to target_size (largest side, scene units)."""
+    check_path(filepath)
     if not os.path.isfile(filepath):
         raise ValueError(f"File not found: {filepath}")
 
@@ -194,6 +201,7 @@ def import_file(filepath: str, options=None, target_size: float = 0.0, drop_to_g
 
 def export_file(filepath: str, options=None, objects: list = None) -> dict:
     """Export from Blender to a file (everything, or only the listed objects)."""
+    check_path(filepath)
     ext = os.path.splitext(filepath)[1].lower()
     if ext not in _EXPORT_MAP:
         raise ValueError(f"Unsupported export format '{ext}'. Supported: {', '.join(_EXPORT_MAP)}")
@@ -216,6 +224,7 @@ def export_file(filepath: str, options=None, objects: list = None) -> dict:
 
 def save_blend(filepath: str = "") -> dict:
     """Save the current .blend file."""
+    check_path(filepath or bpy.data.filepath)
     if filepath:
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
     elif not bpy.data.filepath:
@@ -228,6 +237,7 @@ def save_blend(filepath: str = "") -> dict:
 
 def open_blend(filepath: str, discard_changes: bool = False) -> dict:
     """Open a .blend file (embedded scripts are never auto-run)."""
+    check_path(filepath)
     if not os.path.isfile(filepath):
         raise ValueError(f"File not found: {filepath}")
     if bpy.data.is_dirty and not discard_changes and not bpy.app.background:
@@ -244,6 +254,8 @@ def save_checkpoint(label: str = "") -> dict:
     stem = os.path.splitext(os.path.basename(source))[0] if source else "untitled"
     folder = os.path.join(os.path.dirname(source), f"{stem}_checkpoints") if source else \
         os.path.join(tempfile.gettempdir(), "yab_mcp_checkpoints")
+    if source:
+        check_path(folder)
     os.makedirs(folder, exist_ok=True)
     tag = re.sub(r"[^A-Za-z0-9_-]+", "_", label).strip("_")[:40]
     path = os.path.join(folder, f"{stem}_{time.strftime('%Y%m%d_%H%M%S')}{'_' + tag if tag else ''}.blend")
@@ -254,6 +266,7 @@ def save_checkpoint(label: str = "") -> dict:
 
 def list_directory(path: str, filter: str = "") -> dict:
     """List files in a directory, optionally filtered by extension."""
+    check_path(path)
     if not os.path.isdir(path):
         raise ValueError(f"Directory not found: {path}")
 
@@ -283,6 +296,7 @@ def _same_file(a, b):
 
 def list_blend_contents(filepath: str) -> dict:
     """List what a .blend file contains (objects, collections, materials, node groups...) without opening it."""
+    check_path(filepath)
     if not os.path.isfile(filepath):
         raise ValueError(f"File not found: {filepath}")
     if _same_file(filepath, bpy.data.filepath):
@@ -300,6 +314,7 @@ def list_blend_contents(filepath: str) -> dict:
 
 def append_from_blend(filepath: str, names: list = None, data_type: str = "objects", link: bool = False) -> dict:
     """Append (or link) objects, collections, materials, node groups... from another .blend file."""
+    check_path(filepath)
     if not os.path.isfile(filepath):
         raise ValueError(f"File not found: {filepath}")
     if data_type not in _BLEND_KINDS:
@@ -348,6 +363,7 @@ def add_reference_image(filepath: str, name: str = "", mode: str = "empty", size
 
     view: front (faces -Y), right (faces +X), top (faces +Z). size: height in scene units.
     """
+    check_path(filepath)
     if not os.path.isfile(filepath):
         raise ValueError(f"File not found: {filepath}")
     rotations = {"front": (90, 0, 0), "back": (90, 0, 180), "right": (90, 0, 90), "left": (90, 0, -90),

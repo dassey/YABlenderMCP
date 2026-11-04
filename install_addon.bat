@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-set SRC=%~dp0addon
+set SRC=%~dp0yab_mcp\addon
 set ZIP=%~dp0yab-mcp-addon.zip
 set DEST=%APPDATA%\Blender Foundation\Blender\5.1\scripts\addons\yab_mcp
 
@@ -23,14 +23,17 @@ if exist "%DEST%" (
 
 :: Not installed yet - build the zip (files must sit inside a yab_mcp\ folder)
 echo Building yab-mcp-addon.zip...
-python "%~dp0build_addon.py"
-if errorlevel 1 (
+pushd "%~dp0"
+python -m yab_mcp build-addon --out "%ZIP%"
+set BUILD_ERROR=%errorlevel%
+popd
+if not "%BUILD_ERROR%"=="0" (
     echo Could not build yab-mcp-addon.zip. Make sure Python is on PATH.
     goto :end
 )
 
 echo.
-echo Next steps:
+echo Next steps (or simply run: python "%~dp0install.py"):
 echo   1. Open Blender 5.1
 echo   2. Edit ^> Preferences ^> Add-ons
 echo   3. Click dropdown arrow ^> Install from Disk...

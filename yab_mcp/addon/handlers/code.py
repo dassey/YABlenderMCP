@@ -4,6 +4,7 @@ import ctypes
 import io
 import linecache
 import math
+import sys
 import textwrap
 import threading
 import traceback
@@ -19,6 +20,56 @@ from .common import view3d_context
 
 MAX_OUTPUT = 200_000
 _FILENAME = "<mcp_code>"
+_SET_ASYNC_EXC = ctypes.pythonapi.PyThreadState_SetAsyncExc  # looked up now: the guard blocks dlsym later
+
+# While AI-sent code runs, Python may not reach the network or start programs, threads or native
+# libraries (preference "Block internet and programs in Python code"). Agent code is recognised by its
+# filename on the call stack, also when functions it defined run later (timers, handlers). An audit
+# hook is not a sandbox; "Allow Python code" off is the hard switch.
+_NET_EVENTS = {"socket.connect", "socket.getaddrinfo", "socket.sendto", "socket.bind"}
+_SPAWN_EVENTS = {"subprocess.Popen", "os.system", "os.exec", "os.posix_spawn", "os.spawn", "os.startfile",
+                 "os.fork", "os.forkpty", "webbrowser.open", "ctypes.dlopen", "ctypes.dlsym",
+                 "_thread.start_new_thread", "_thread.start_joinable_thread"}
+_GUARD_KEY = "_yab_mcp_guard"  # kept on sys, so a reloaded add-on reuses the one hook
+
+
+def _loopback(host):
+    host = host.decode(errors="ignore") if isinstance(host, (bytes, bytearray)) else str(host)
+    return host in ("localhost", "::1") or host.startswith("127.")
+
+
+def _in_agent_code():
+    frame = sys._getframe(2)
+    while frame is not None:
+        if frame.f_code.co_filename == _FILENAME:
+            return True
+        frame = frame.f_back
+    return False
+
+
+def _audit(event, args):
+    if event not in _NET_EVENTS and event not in _SPAWN_EVENTS:
+        return
+    if not getattr(sys, _GUARD_KEY, {}).get("on") or not _in_agent_code():
+        return
+    preference = "add-on preference 'Block internet and programs in Python code'"
+    if event in _NET_EVENTS:
+        address = args[0] if event == "socket.getaddrinfo" else args[1]
+        host = address[0] if isinstance(address, tuple) else (address if event == "socket.getaddrinfo" else None)
+        if host is None or _loopback(host):
+            return
+        raise PermissionError(f"YABlenderMCP blocked a network connection to {host} from AI-sent code ({preference})")
+    raise PermissionError(f"YABlenderMCP blocked {event} in AI-sent code: it may not start programs, threads or "
+                          f"native libraries ({preference})")
+
+
+def _guard(on):
+    state = getattr(sys, _GUARD_KEY, None)
+    if state is None:
+        state = {"on": on}
+        setattr(sys, _GUARD_KEY, state)
+        sys.addaudithook(_audit)
+    state["on"] = on
 
 
 class CodeTimeout(BaseException):
@@ -53,7 +104,7 @@ class _ThreadCapture(io.TextIOBase):
 
 
 def _async_raise(thread_id, exc):
-    ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(thread_id), ctypes.py_object(exc) if exc else None)
+    _SET_ASYNC_EXC(ctypes.c_ulong(thread_id), ctypes.py_object(exc) if exc else None)
 
 
 def to_jsonable(value, depth=0):
@@ -93,10 +144,11 @@ def execute_code(code: str, timeout: float = 170.0, view3d: bool = True) -> dict
     Assign a variable named `result` to get structured data back. Runaway code is
     interrupted after `timeout` seconds (a single long C call such as a render cannot be).
     """
-    from ..server import code_allowed  # checked here so execute_batch can't bypass it
+    from ..server import code_allowed, code_isolated  # checked here so execute_batch can't bypass it
     if not code_allowed():
         raise PermissionError("Python code is turned off (YABlenderMCP add-on preferences: Allow Python code). "
                               "Use the structured tools, or ask the user to turn it on.")
+    _guard(code_isolated())
     try:
         code_obj, source, fixed_indent = _compile(code)
     except SyntaxError:
@@ -118,8 +170,8 @@ def execute_code(code: str, timeout: float = 170.0, view3d: bool = True) -> dict
         "D": bpy.data,
     }
     thread_id = threading.get_ident()
-    out = _ThreadCapture(getattr(__import__("sys"), "stdout", None), thread_id)
-    err = _ThreadCapture(getattr(__import__("sys"), "stderr", None), thread_id)
+    out = _ThreadCapture(getattr(sys, "stdout", None), thread_id)
+    err = _ThreadCapture(getattr(sys, "stderr", None), thread_id)
     lock = threading.Lock()
     state = {"done": False, "fired": False}
 

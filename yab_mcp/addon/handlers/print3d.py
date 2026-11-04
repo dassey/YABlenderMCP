@@ -15,7 +15,7 @@ from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
 from . import register_handler
-from .common import get_object, object_mode, select_only, unit_scale_to_mm, world_bbox
+from .common import get_object, object_mode, select_only, unit_scale_to_mm, world_bbox, check_path
 
 # Build volumes in mm (X, Y, Z). H2C/H2D/H2S values from Bambu Lab specs.
 PRINTERS = {
@@ -587,6 +587,7 @@ def export_print(filepath: str, objects: list = None, check: bool = True, separa
                  printer: str = "") -> dict:
     """Export objects for slicing in millimeters: .3mf (one file, objects kept separate, colours kept)
     or .stl (merged, or one file per object with separate_files). Modifiers are applied."""
+    check_path(filepath)
     objs = _targets(objects)
     ext = os.path.splitext(filepath)[1].lower()
     if ext not in (".stl", ".3mf"):

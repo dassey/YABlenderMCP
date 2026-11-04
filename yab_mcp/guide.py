@@ -1,11 +1,10 @@
-"""The usage guide (skills/yab-mcp/SKILL.md) served over MCP, for clients without Agent Skills support."""
+"""The usage guide (yab_mcp/skills/yab-mcp/SKILL.md) served over MCP, for clients without Agent Skills support."""
 
 import os
 
 from .compat import READ, FastMCP
 
-GUIDE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                          "skills", "yab-mcp", "SKILL.md")
+GUIDE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills", "yab-mcp", "SKILL.md")
 
 
 def guide_text() -> str:

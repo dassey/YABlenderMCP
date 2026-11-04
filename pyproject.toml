@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yab-mcp"
+dynamic = ["version"]
+description = "YABlenderMCP: a local-only MCP server that lets an AI agent work in Blender 5.1"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "dassey" }]
+keywords = ["mcp", "model-context-protocol", "blender", "3d-printing", "ai-agents"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+]
+dependencies = ["mcp>=1.30,<3"]
+
+[project.urls]
+Homepage = "https://github.com/dassey/YABlenderMCP"
+Issues = "https://github.com/dassey/YABlenderMCP/issues"
+
+[project.scripts]
+yab-mcp = "yab_mcp.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "yab_mcp.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["yab_mcp*"]
+
+[tool.setuptools.package-data]
+yab_mcp = ["skills/*/SKILL.md"]

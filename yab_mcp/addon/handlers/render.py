@@ -7,6 +7,7 @@ import tempfile
 import bpy
 
 from . import register_handler
+from .common import check_path
 
 _EEVEE_IDS = ("BLENDER_EEVEE", "BLENDER_EEVEE_NEXT")
 _ENGINE_ALIASES = {
@@ -80,7 +81,7 @@ def set_render_settings(engine: str = "", resolution_x: int = 0, resolution_y: i
     if film_transparent is not None:
         render.film_transparent = film_transparent
     if output_path:
-        render.filepath = output_path
+        render.filepath = check_path(output_path)
     if file_format:
         fmt = file_format.upper()
         # Blender 5 lists FFMPEG only under the VIDEO media type, so pick that first.
@@ -154,6 +155,7 @@ def _encode_preview(path, max_size):
 
 def render_frame(frame: int = -1, output_path: str = "", max_size: int = 1024) -> dict:
     """Render a single frame (blocking) and return a preview of the result."""
+    check_path(output_path)
     scene = bpy.context.scene
 
     if frame >= 0:
@@ -206,6 +208,7 @@ def _render_cancelled(*_args):
 
 def render_animation(start: int = -1, end: int = -1, output_path: str = "", wait: bool = False) -> dict:
     """Render an animation. With Blender's UI it runs in the background (check get_render_status)."""
+    check_path(output_path)
     scene = bpy.context.scene
 
     if start >= 0:

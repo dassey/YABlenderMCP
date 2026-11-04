@@ -5,6 +5,7 @@ import os
 import bpy
 
 from . import register_handler
+from .common import check_path
 
 
 def list_materials() -> dict:
@@ -162,6 +163,9 @@ def create_pbr_material(name: str, folder: str = "", maps: dict = None, object_n
     projection: uv, box or auto (box when the object has no UV map).
     """
     textures = {}
+    check_path(folder)
+    for path in (maps or {}).values():
+        check_path(path)
     if folder:
         if not os.path.isdir(folder):
             raise ValueError(f"Directory not found: {folder}")

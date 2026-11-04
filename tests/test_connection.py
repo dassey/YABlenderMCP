@@ -1,4 +1,5 @@
 import json
+import os
 import socket
 import sys
 
@@ -9,7 +10,9 @@ def test_blender_connection(host="127.0.0.1", port=9001):
         sock.connect((host, port))
         print(f"Connected to Blender at {host}:{port}")
 
-        command = {"type": "execute_code", "params": {"code": "print('YABlenderMCP test OK')"}}
+        # ping works whatever the add-on's switches say (execute_code may be turned off)
+        command = {"type": "ping", "params": {},
+                   "token": os.environ.get("YAB_MCP_TOKEN", os.environ.get("BLENDER_MCP_TOKEN", ""))}
         sock.sendall(json.dumps(command).encode("utf-8"))
 
         chunks = []
@@ -22,8 +25,10 @@ def test_blender_connection(host="127.0.0.1", port=9001):
             try:
                 response = json.loads(b"".join(chunks).decode("utf-8"))
                 print(f"Response: {json.dumps(response, indent=2)}")
-                assert response["status"] == "success"
-                assert response["result"]["executed"] is True
+                if response["status"] != "success":
+                    print(f"FAIL: {response.get('message')}")
+                    return False
+                assert response["result"]["pong"] is True
                 print("PASS")
                 return True
             except json.JSONDecodeError:

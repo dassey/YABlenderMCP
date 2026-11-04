@@ -1,0 +1,56 @@
+name: Publish
+
+# Push a tag like v2.3.0 to publish that version to PyPI and the MCP Registry.
+# One-time setup on pypi.org: add a (pending) trusted publisher for project "yab-mcp",
+# owner "dassey", repository "YABlenderMCP", workflow "publish.yml", environment "pypi".
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write  # PyPI trusted publishing and MCP Registry login, no stored tokens
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check that every version matches the tag
+        run: |
+          python - <<'PY'
+          import ast, json, os, re
+          tag = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          package = re.search(r'__version__ = "([^"]+)"', open("yab_mcp/__init__.py").read()).group(1)
+          addon = re.search(r'"version": (\([^)]*\))', open("yab_mcp/addon/__init__.py").read()).group(1)
+          addon = ".".join(map(str, ast.literal_eval(addon)))
+          server = json.load(open("server.json"))
+          versions = {"package": package, "add-on": addon, "server.json": server["version"],
+                      "server.json package": server["packages"][0]["version"]}
+          wrong = {k: v for k, v in versions.items() if v != tag}
+          assert not wrong, f"tag {tag} does not match {wrong}"
+          print("versions match", tag)
+          PY
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Publish to the MCP Registry
+        run: |
+          curl -sSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          for attempt in 1 2 3 4 5; do  # PyPI needs a moment before the registry can see the new version
+            ./mcp-publisher publish && exit 0
+            sleep 30
+          done
+          exit 1

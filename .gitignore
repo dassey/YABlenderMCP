@@ -5,3 +5,6 @@ __pycache__/
 .claude/
 docs/git2.md
 .venv/
+*.egg-info/
+build/
+dist/

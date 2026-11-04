@@ -89,8 +89,8 @@ class BlenderConnection:
         if response.get("status") == "error":
             message = response.get("message", "Unknown error from Blender")
             if message.startswith("Unknown command"):
-                message += (" (the Blender addon may be older than this MCP server: reinstall it with"
-                            " install_addon.bat / build_addon.py and restart Blender)")
+                message += (" (the Blender add-on may be older than this MCP server: close Blender, run"
+                            " `yab-mcp install` (`python install.py` in a clone) and open Blender again)")
             raise ToolError(message)
         return response.get("result", {})
 

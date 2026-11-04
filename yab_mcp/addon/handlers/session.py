@@ -6,6 +6,7 @@ import sys
 import bpy
 
 from . import get_handler, register_handler
+from .common import check_path
 from .code import to_jsonable
 
 # Batches run inside one undo step, so they must not load files or walk the undo stack.
@@ -393,6 +394,8 @@ def set_properties(target: str, properties: dict) -> dict:
             owner_path, attr, index = _split_path(path)
             if attr in _PYTHON_PROPS and not _code_allowed():
                 raise PermissionError("Python code is turned off, so driver expressions and text modules can't be set")
+            if isinstance(value, str) and ("filepath" in attr or "directory" in attr):
+                check_path(value)
             owner = root.path_resolve(owner_path) if owner_path else root
             if index is not None:
                 getattr(owner, attr)[index] = value

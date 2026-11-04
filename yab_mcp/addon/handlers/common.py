@@ -1,5 +1,7 @@
 """Shared helpers for handlers."""
 
+import os
+
 import bpy
 import mathutils
 
@@ -75,3 +77,31 @@ def select_only(objects, active=None):
 def unit_scale_to_mm() -> float:
     """Factor converting Blender units to millimeters for the current scene."""
     return bpy.context.scene.unit_settings.scale_length * 1000.0
+
+
+def _addon_prefs():
+    addon = bpy.context.preferences.addons.get(__package__.split(".")[0])
+    return addon.preferences if addon else None
+
+
+def allowed_folders() -> list:
+    """The add-on's "Allowed folders" preference (empty: the file tools may use any folder)."""
+    prefs = _addon_prefs()
+    text = getattr(prefs, "allowed_folders", "") if prefs else ""
+    return [os.path.normcase(os.path.realpath(bpy.path.abspath(p.strip()))) for p in text.split(";") if p.strip()]
+
+
+def check_path(path: str) -> str:
+    """Refuse a path outside the allowed folders. Python code (execute_blender_code) is not limited by this."""
+    folders = allowed_folders()
+    if not folders or not path:
+        return path
+    real = os.path.normcase(os.path.realpath(bpy.path.abspath(path)))
+    for folder in folders:
+        try:
+            if os.path.commonpath([real, folder]) == folder:
+                return path
+        except ValueError:  # different drives on Windows
+            continue
+    raise PermissionError(f"'{path}' is outside the allowed folders ({'; '.join(folders)}). "
+                          "Change them in the YABlenderMCP add-on preferences.")
