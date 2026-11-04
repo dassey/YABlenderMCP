@@ -2,12 +2,13 @@ name: Registry status
 
 # Run by hand (Actions > Registry status > Run workflow) to change a listing's status in the MCP Registry,
 # for example to deprecate a broken version. Signs in with GitHub OIDC like publish.yml: no stored tokens.
+# The defaults mark the pre-2.3.1 name as replaced, so running it unchanged is harmless.
 on:
   workflow_dispatch:
     inputs:
       name:
         description: "Registry name"
-        default: "io.github.dassey/yablendermcp"
+        default: "io.github.dassey/yab-mcp"
       version:
         description: "Version, or all"
         default: "all"
@@ -18,7 +19,7 @@ on:
         default: deprecated
       message:
         description: "Message shown with the status (optional)"
-        default: ""
+        default: "Renamed to io.github.dassey/yablendermcp"
 
 jobs:
   status:
