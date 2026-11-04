@@ -88,7 +88,8 @@ def allowed_folders() -> list:
     """The add-on's "Allowed folders" preference (empty: the file tools may use any folder)."""
     prefs = _addon_prefs()
     text = getattr(prefs, "allowed_folders", "") if prefs else ""
-    return [os.path.normcase(os.path.realpath(bpy.path.abspath(p.strip()))) for p in text.split(";") if p.strip()]
+    return [os.path.normcase(os.path.realpath(bpy.path.abspath(os.path.expandvars(os.path.expanduser(p.strip())))))
+            for p in text.split(";") if p.strip()]
 
 
 def check_path(path: str) -> str:

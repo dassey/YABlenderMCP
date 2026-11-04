@@ -109,6 +109,15 @@ class InstallError(Exception):
     pass
 
 
+def expand_path(path):
+    """~, %VAR% and $VAR work from any shell: PowerShell passes %USERPROFILE% through unexpanded."""
+    expanded = os.path.expandvars(os.path.expanduser(path))
+    if re.search(r"%[^%\\/]+%|\$env:|\$\{?[A-Za-z_]", expanded):
+        raise InstallError(f"Could not expand {path!r}. Use ~ (for example ~/.claude/skills), "
+                           "$env:USERPROFILE in PowerShell or %USERPROFILE% in Command Prompt.")
+    return os.path.abspath(expanded)
+
+
 def _tail(text, lines=25):
     return "\n".join(text.strip().splitlines()[-lines:])
 
@@ -248,7 +257,7 @@ def verify(blender, token):
 
 
 def skill_target(skill_dir, name=None):
-    return os.path.join(os.path.abspath(os.path.expanduser(skill_dir)), name or os.path.basename(SKILL))
+    return os.path.join(expand_path(skill_dir), name or os.path.basename(SKILL))
 
 
 def remove_skill(skill_dir):
@@ -340,6 +349,8 @@ def main(argv):
         parser.add_argument("--skip-verify", action="store_true", help="skip the headless self-test")
     args = parser.parse_args(rest)
     try:
+        args.skill_dir = expand_path(args.skill_dir) if args.skill_dir else None
+        args.blender = expand_path(args.blender) if args.blender else None
         if blender_running() and not args.force:
             raise InstallError("Blender is running. Close it first (it would overwrite the new preferences "
                                "when it quits), then run this again. Use --force to skip this check.")
