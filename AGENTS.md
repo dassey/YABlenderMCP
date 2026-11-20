@@ -191,12 +191,12 @@ blender -b scene.blend -c yab_mcp --port 9001
 
 ## Configuring MCP Clients
 
-User-level MCP client config is at `C:/Users/msist/.claude.json`. The entry is:
+Add this entry to the MCP client's user-level config file:
 ```json
 {
   "mcpServers": {
     "yab-mcp": {
-      "command": "C:/Users/msist/Desktop/Agents/MCP/Blender/.venv/Scripts/python.exe",
+      "command": "<repo>/.venv/Scripts/python.exe",
       "args": ["-m", "yab_mcp"],
       "env": {"PYTHONUTF8": "1", "YAB_MCP_TOKEN": "<printed by yab-mcp install>"}
     }
@@ -251,13 +251,13 @@ The client must be restarted to pick up config changes. Optional env: `YAB_MCP_P
 
 ## User Profile & Working Style
 
-The user is solo, builds for themselves, values trust and simplicity over features. Read their preferences in `C:/Users/msist/.claude/projects/C--Users-msist-Desktop-Agents-aitools/memory/` — especially relevant are project-level memories about their 2D-to-articulated-print pipeline (VibeCut). They also have an existing BlenderMCP reference they liked at `C:/Users/msist/MCP/blender-mcp-antigravity-main/` and a ComfyUI MCP at `C:/Users/msist/MCP/comfyui-mcp-server-main/`.
+The user is solo, builds for themselves, values trust and simplicity over features.
 
 When they say "I don't know, you decide" — make the call. They trust you. Don't bounce decisions back unless there's something only they can answer.
 
 **They don't read long technical walls of text.** Keep explanations short. Show results, not process.
 
-Hardware: NVIDIA RTX 5090 (Cycles: `set_render_device("AUTO")` picks OptiX), Bambu Lab H2C printer (pass `printer="H2C"` to the print tools; profiles are in `PRINTERS` in `yab_mcp/addon/handlers/print3d.py`; the `print_prep` prompt defaults to H2C).
+Defaults: `set_render_device("AUTO")` picks the best Cycles device. The `print_prep` prompt defaults to the H2C printer profile (pass `printer="H2C"` to the print tools; profiles are in `PRINTERS` in `yab_mcp/addon/handlers/print3d.py`).
 
 ---
 
@@ -265,4 +265,4 @@ Hardware: NVIDIA RTX 5090 (Cycles: `set_render_device("AUTO")` picks OptiX), Bam
 
 GitHub: https://github.com/dassey/YABlenderMCP (public)
 
-The user owns the repo. Commit straight to `master` (no PRs, no feature branches) and keep commits minimal. If a commit message is needed, use `hi`. No AI attribution anywhere (no Co-Authored-By or session lines), and never use the user's Gmail address as author or committer.
+The user owns the repo. Commit straight to `master` (no PRs, no feature branches) and keep commits minimal. If a commit message is needed, use `hi`. No AI attribution anywhere (no Co-Authored-By or session lines), and only the GitHub noreply address as author or committer.
